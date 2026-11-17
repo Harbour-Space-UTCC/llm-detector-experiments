@@ -22,7 +22,7 @@
 
 **Result**: Metrics computed from a Run's Scores.
 
-**Miss rate**: Share of LLM-written Samples a Detector scores as human at a given threshold. The threshold is the paper's own, or when the paper gives none, the one that flags 5% of human Samples.
+**Miss rate**: Share of LLM-written Samples a Detector scores as human at a given threshold. The threshold is the paper's own. When the paper gives none, it is the one that flags the paper's FPR share of human Samples, or 5% if the paper states no FPR either.
 
 **Outdated**: A Detector whose miss rate on frontier Generators is higher than the miss rate its paper reported.
 
