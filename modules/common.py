@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 
-ROOT = Path(__file__).parent
+ROOT = Path(__file__).parent.parent
 
 
 def load_config(path="config.toml"):

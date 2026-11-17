@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 
-from common import read_csv, results_dir
+from .common import read_csv, results_dir
 
 
 def fallback_threshold(human, fpr):

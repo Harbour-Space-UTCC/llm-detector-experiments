@@ -4,7 +4,7 @@ import re
 
 import pandas as pd
 
-from common import ROOT, append_csv, read_csv, results_dir
+from .common import ROOT, append_csv, read_csv, results_dir
 
 COLUMNS = ["sample_id", "problem_id", "label", "generator", "model_id", "code", "raw_response"]
 _FENCE_PY = re.compile(r"```(?:python3?|py)[ \t]*\n(.*?)```", re.DOTALL)

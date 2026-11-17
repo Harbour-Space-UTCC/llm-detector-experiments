@@ -14,3 +14,14 @@ model_id = "openai/gpt-4o-mini"     # exact OpenRouter model ID
 [detectors.random_baseline]
 # threshold = 0.5                   # paper's own threshold; omit = use fpr_fallback
 # paper_miss_rate = 0.05            # paper's reported miss rate, for the Outdated comparison
+
+# Placeholders (detectors/<name>.py raise NotImplementedError). Uncomment once implemented.
+# [detectors.droiddetect]
+# [detectors.gptsniffer]
+# [detectors.detectcodegpt]
+# [detectors.atc]
+# paper_miss_rate = 0.1592         # APPS, at the paper's 10% FPR
+# [detectors.whodunit]
+# [detectors.llm_judge]
+# judge_model_id = ""              # exact model ID, shows vendor overlap with Generators
+# [detectors.jplag]

@@ -3,7 +3,7 @@ import importlib
 
 import pandas as pd
 
-from common import append_csv, read_csv, results_dir
+from .common import append_csv, read_csv, results_dir
 
 CHUNK = 64  # Scores appended per chunk, so a crash mid-Run resumes
 
