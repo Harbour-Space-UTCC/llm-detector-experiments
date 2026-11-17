@@ -39,11 +39,13 @@ def metrics(cfg):
         human = s.loc[s["label"] == "human", "score"].to_numpy()
         if len(human) == 0:
             raise ValueError(f"{name}: no human Samples scored; FPR and AUROC need them")
-        paper_t = "threshold" in dcfg
-        t = dcfg["threshold"] if paper_t else fallback_threshold(human, cfg["fpr_fallback"])
+        if "threshold" in dcfg:
+            threshold, source = dcfg["threshold"], "paper"
+        else:
+            threshold, source = fallback_threshold(human, cfg["fpr_fallback"]), "fpr_fallback"
         for gen, g in s[s["label"] == "llm"].groupby("generator"):
-            r = {"detector": name, "generator": gen, "threshold_source": "paper" if paper_t else "fpr_fallback",
-                 **summarize(human, g["score"], t)}
+            r = {"detector": name, "generator": gen, "threshold_source": source,
+                 **summarize(human, g["score"], threshold)}
             if "paper_miss_rate" in dcfg:
                 r["paper_miss_rate"] = dcfg["paper_miss_rate"]
                 r["outdated"] = r["miss_rate"] > dcfg["paper_miss_rate"]

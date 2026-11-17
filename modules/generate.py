@@ -2,11 +2,10 @@
 import os
 import re
 
-import pandas as pd
+from openai import OpenAI
 
-from .common import ROOT, append_csv, read_csv, results_dir
+from .common import ROOT, append_csv, done_ids, read_csv, results_dir
 
-COLUMNS = ["sample_id", "problem_id", "label", "generator", "model_id", "code", "raw_response"]
 _FENCE_PY = re.compile(r"```(?:python3?|py)[ \t]*\n(.*?)```", re.DOTALL)
 _FENCE_BARE = re.compile(r"```[ \t]*\n(.*?)```", re.DOTALL)
 
@@ -17,6 +16,16 @@ def extract_code(text):
     return m.group(1).strip() if m else ""
 
 
+def human_samples(problems):
+    human = problems[problems["human_code"].str.strip() != ""]
+    nth = human.groupby("problem_id").cumcount().astype(str)
+    return [
+        {"sample_id": f"human:{pid}:{n}", "problem_id": pid, "label": "human",
+         "generator": "human", "model_id": "", "code": code, "raw_response": ""}
+        for pid, n, code in zip(human["problem_id"], nth, human["human_code"])
+    ]
+
+
 def generate(cfg, force=False):
     out = results_dir(cfg) / "samples.csv"
     if force:
@@ -25,47 +34,38 @@ def generate(cfg, force=False):
         for f in (out.parent / "scores").glob("*.csv"):
             f.unlink()
         print("force: cleared samples.csv and all scores")
-    done = set(read_csv(out)["sample_id"]) if out.exists() else set()
-
+    done = done_ids(out)
     problems = read_csv(ROOT / cfg["problems"])
     template = (ROOT / cfg["template"]).read_text()
 
-    # Human Samples: one per non-empty human_code row.
-    human = problems[problems["human_code"].str.strip() != ""].copy()
-    human["sample_id"] = "human:" + human["problem_id"] + ":" + human.groupby("problem_id").cumcount().astype(str)
-    human = human[~human["sample_id"].isin(done)]
-    if len(human):
-        append_csv(pd.DataFrame({
-            "sample_id": human["sample_id"], "problem_id": human["problem_id"], "label": "human",
-            "generator": "human", "model_id": "", "code": human["human_code"], "raw_response": "",
-        })[COLUMNS], out)
+    human = [s for s in human_samples(problems) if s["sample_id"] not in done]
+    if human:
+        append_csv(human, out)
     print(f"human: {len(human)} new Samples")
 
-    # LLM Samples: one per (Generator, unique Problem). Appended one by one so a crash resumes.
-    from openai import OpenAI
     client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
     unique = problems.drop_duplicates("problem_id")
     for g in cfg["generators"]:
+        options = {"temperature": g["temperature"]} if "temperature" in g else {}
         new = failed = no_code = 0
         for pid, statement in zip(unique["problem_id"], unique["statement"]):
             sid = f"{g['name']}:{pid}"
             if sid in done:
                 continue
-            extra = {"temperature": g["temperature"]} if "temperature" in g else {}
+            prompt = template.replace("{problem}", statement)
             try:
                 r = client.chat.completions.create(
-                    model=g["model_id"],
-                    messages=[{"role": "user", "content": template.replace("{problem}", statement)}],
-                    **extra,
-                )
+                    model=g["model_id"], messages=[{"role": "user", "content": prompt}], **options)
                 raw = r.choices[0].message.content or ""
-            except Exception as e:  # not written -> retried on next call
+            except Exception as e:  # not written, so the next call retries it
                 failed += 1
                 print(f"  {sid} failed: {e}")
                 continue
             code = extract_code(raw)
             no_code += code == ""
-            append_csv(pd.DataFrame([[sid, pid, "llm", g["name"], g["model_id"], code, raw]], columns=COLUMNS), out)
+            # One row per call: a crash loses at most the Sample in flight.
+            append_csv([{"sample_id": sid, "problem_id": pid, "label": "llm", "generator": g["name"],
+                         "model_id": g["model_id"], "code": code, "raw_response": raw}], out)
             new += 1
         print(f"{g['name']}: {new} new, {failed} failed (rerun to retry), {no_code} with no code block")
 
