@@ -1,0 +1,16 @@
+# What to run. Teammates edit this file, inputs/ and their own detectors/<name>.py.
+experiment = "toy"                  # results go to results/<experiment>/
+template = "inputs/template.txt"    # Prompt Template, must contain {problem}
+problems = "inputs/problems.csv"    # problem_id, statement, human_code (one row per human solution)
+fpr_fallback = 0.05                 # threshold flags this share of human Samples when a detector has no paper threshold
+
+# One block per Generator. Friend replaces this list.
+[[generators]]
+name = "gpt-4o-mini"                # short name, used in sample_id
+model_id = "openai/gpt-4o-mini"     # exact OpenRouter model ID
+# temperature = 0.0                 # omit = provider default
+
+# One block per Detector; module detectors/<name>.py. Comment a block out to skip it.
+[detectors.random_baseline]
+# threshold = 0.5                   # paper's own threshold; omit = use fpr_fallback
+# paper_miss_rate = 0.05            # paper's reported miss rate, for the Outdated comparison

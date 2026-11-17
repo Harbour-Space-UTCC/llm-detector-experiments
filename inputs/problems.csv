@@ -1,0 +1,10 @@
+problem_id,statement,human_code
+p1,"Read an integer n from stdin and print the sum 1 + 2 + ... + n.","n = int(input())
+print(n * (n + 1) // 2)"
+p1,"Read an integer n from stdin and print the sum 1 + 2 + ... + n.","n=int(input())
+s=0
+for i in range(1,n+1):
+    s+=i
+print(s)"
+p2,"Read a line of text and print it reversed.","print(input()[::-1])"
+p3,"Read two integers a and b on one line and print their greatest common divisor.",
