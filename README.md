@@ -84,12 +84,13 @@ temperature = 0.0                      # optional; omit for the provider default
 
 ## Adding a Detector
 
-1. Copy `detectors/random_baseline.py` to `detectors/<name>.py`. Placeholder files already exist for the starter set (`droiddetect`, `gptsniffer`, `detectcodegpt`, `atc`, `whodunit`, `llm_judge`, `jplag`). Their docstrings list the paper, the checkpoint or code link, and the hardware needed.
+1. Copy `detectors/random_baseline.py` to `detectors/<name>.py`. Placeholder files already exist for the starter set (`xgb_tfidf`, `whodunit`, `atc`, `droiddetect`, `llm_judge`). Their docstrings list the paper, the checkpoint or code link, the hardware needed and the paper's numbers. `prototypes/<name>.ipynb` reproduces each paper's own number in Colab before its `score()` moves into `detectors/`.
 2. Implement `score(codes: list[str]) -> list[float]`: one Score per code, higher means more likely LLM-written. `score` is called once per chunk of 64 Samples, so load models once at module level, never inside `score`.
 3. Add a block to `config.toml`:
    ```toml
    [detectors.<name>]
-   threshold = 0.5          # the paper's own threshold; omit to use fpr_fallback
+   threshold = 0.5          # the paper's own threshold; omit to use fpr or fpr_fallback
+   fpr = 0.10               # the paper's FPR operating point, when it has no fixed threshold
    paper_miss_rate = 0.16   # the paper's miss rate, for the Outdated verdict
    ```
 4. Run it on the `toy` experiment, then open a PR.

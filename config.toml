@@ -12,16 +12,24 @@ model_id = "openai/gpt-4o-mini"     # exact OpenRouter model ID
 
 # One block per Detector; module detectors/<name>.py. Comment a block out to skip it.
 [detectors.random_baseline]
-# threshold = 0.5                   # paper's own threshold; omit = use fpr_fallback
+# threshold = 0.5                   # paper's own threshold; omit = use fpr (below) or fpr_fallback
+# fpr = 0.10                        # paper's FPR operating point when it has no fixed threshold
 # paper_miss_rate = 0.05            # paper's reported miss rate, for the Outdated comparison
 
 # Placeholders (detectors/<name>.py raise NotImplementedError). Uncomment once implemented.
+# [detectors.xgb_tfidf]
+# threshold = 0.5                  # XGBClassifier.predict cut-off
+# paper_miss_rate = 0.013          # 1 - recall 98.70 (Table 3)
 # [detectors.droiddetect]
-# [detectors.gptsniffer]
-# [detectors.detectcodegpt]
+# threshold = 0.5                  # argmax of the binary head
+# paper_miss_rate = 0.014          # inferred, paper states none: replace with the prototype's measured value
 # [detectors.atc]
-# paper_miss_rate = 0.1592         # APPS, at the paper's 10% FPR
+# fpr = 0.10                       # paper's operating point (no fixed threshold published)
+# paper_miss_rate = 0.2150         # CodeLlama-7B, N=4, APPS, at 10% FPR (Appendix H)
 # [detectors.whodunit]
+# threshold = 0.5                  # XGBClassifier.predict cut-off
+# paper_miss_rate = 0.09           # 1 - recall 0.91, Table 4 "All"
 # [detectors.llm_judge]
 # judge_model_id = ""              # exact model ID, shows vendor overlap with Generators
-# [detectors.jplag]
+# threshold = 0.5                  # majority of 3 votes
+# paper_miss_rate =                # per judge, zero-shot, see detectors/llm_judge.py
