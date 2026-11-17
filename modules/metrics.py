@@ -42,7 +42,8 @@ def metrics(cfg):
         if "threshold" in dcfg:
             threshold, source = dcfg["threshold"], "paper"
         else:
-            threshold, source = fallback_threshold(human, cfg["fpr_fallback"]), "fpr_fallback"
+            fpr = dcfg.get("fpr", cfg["fpr_fallback"])
+            threshold, source = fallback_threshold(human, fpr), f"fpr={fpr}"
         for gen, g in s[s["label"] == "llm"].groupby("generator"):
             r = {"detector": name, "generator": gen, "threshold_source": source,
                  **summarize(human, g["score"], threshold)}
