@@ -29,3 +29,23 @@ def append_csv(rows, path):
 def done_ids(path):
     """sample_ids already written to `path`; stages skip these so a rerun resumes."""
     return set(read_csv(path)["sample_id"]) if path.exists() else set()
+
+
+# One file per Category in results/<experiment>/; samples.csv combines them for the Detectors.
+CATEGORY_FILES = {"Human": "human.csv", "Direct": "direct.csv",
+                  "Style-prompted": "style_prompted.csv", "Human-fixed": "human_fixed.csv"}
+SAMPLE_COLUMNS = ["sample_id", "problem_id", "label", "category", "generator", "model_id",
+                  "edit_count", "source_id", "code"]
+
+
+def combine(d):
+    """Rebuild samples.csv from the Category files. Human-fixed rows that were dropped are left out."""
+    parts = []
+    for f in CATEGORY_FILES.values():
+        if (d / f).exists():
+            df = read_csv(d / f)
+            if "status" in df:
+                df = df[df["status"] == "kept"]
+            parts.append(df.reindex(columns=SAMPLE_COLUMNS, fill_value=""))
+    if parts:
+        pd.concat(parts).to_csv(d / "samples.csv", index=False)

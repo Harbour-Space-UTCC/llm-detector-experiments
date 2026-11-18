@@ -17,11 +17,14 @@ Every Sample belongs to one of four Categories. The names in the first column ar
 
 ## How it works
 
-Three stages run in order. Each one reads files and writes files, so you can rerun any stage on its own.
+Four stages run in order. Each one reads files and writes files, so you can rerun any stage on its own.
 
-1. **Generate**: for every Generator in `config.toml`, fill the Prompt Template with each Problem, ask the model, and keep the first Python code block. Human solutions from `problems.csv` become human Samples. Output: `results/<experiment>/samples.csv`.
-2. **Score**: run each Detector over every Sample. Output: `results/<experiment>/scores/<detector>.csv`.
-3. **Metrics**: per Detector and Generator, compute AUROC and the miss rate at a threshold, and compare with the paper's miss rate. Output: `results/<experiment>/summary.csv`.
+1. **Generate**: for every Generator in `config.toml`, fill the Prompt Template with each Problem, ask the model, and keep the first Python code block. Human solutions from `problems.csv` become human Samples. Output: `human.csv` and `direct.csv` in `results/<experiment>/`.
+2. **Humanize**: edit every Direct Sample with Edit rules at Edit count 2 and 5. Output: `human_fixed.csv`, with the rules, seed and script version of each row.
+3. **Score**: run each Detector over every Sample. Output: `results/<experiment>/scores/<detector>.csv`.
+4. **Metrics**: per Detector, Generator, Category and Edit count, compute AUROC and the miss rate at a threshold, and compare with the paper's miss rate. Output: `results/<experiment>/summary.csv`.
+
+Generate and Humanize rebuild `samples.csv`, which combines the Category files and is the only file the Detectors read. Human-fixed rows that were dropped are left out.
 
 Each stage skips work that is already on disk, so a crash or a rerun picks up where it stopped.
 
@@ -34,7 +37,7 @@ inputs/problems.csv      problem_id, statement, human_code (one row per human so
 detectors/<name>.py      one file per Detector
 modules/                 pipeline code (generate, humanize, score, metrics)
 colab.ipynb              the notebook everyone runs
-results/<experiment>/    samples.csv, human_fixed.csv, scores/, summary.csv
+results/<experiment>/    human.csv, direct.csv, human_fixed.csv (one per Category), samples.csv (all combined), scores/, summary.csv
 GLOSSARY.md              shared vocabulary
 ```
 
@@ -65,9 +68,9 @@ Teammates normally edit only `config.toml`, `inputs/` and their own `detectors/<
 | --- | --- |
 | Rescore one Detector after changing its code | `score(cfg, only="<name>", force=True)` then `metrics(cfg)` |
 | Score a newly added Detector | `score(cfg, only="<name>")` then `metrics(cfg)` |
-| Add a Generator to an existing experiment | add it to `config.toml`, then `generate(cfg)`, `score(cfg)`, `metrics(cfg)`. Only the new Samples are generated and scored |
-| Redo Human-fixed Samples after changing `modules/humanize.py` | `humanize(cfg, force=True)`. Each row records the `script_version` that made it |
-| Regenerate everything after changing the template or problems | `generate(cfg, force=True)`. This re-bills the API and deletes all Scores of that experiment |
+| Add a Generator to an existing experiment | add it to `config.toml`, then `generate(cfg)`, `humanize(cfg)`, `score(cfg)`, `metrics(cfg)`. Only the new Samples are generated, edited and scored |
+| Redo Human-fixed Samples after changing `modules/humanize.py` | `humanize(cfg, force=True)`, then `score(cfg)` and `metrics(cfg)`. Deletes only the Human-fixed Scores. Each row records the `script_version` that made it |
+| Regenerate everything after changing the template or problems | `generate(cfg, force=True)`. This re-bills the API and deletes every Category file and all Scores of that experiment |
 
 Stages skip work by `sample_id`. Editing `template.txt`, a Generator's `model_id` or `problems.csv` has no effect until you regenerate with `force=True`. A different `experiment` name is usually the better choice, because it keeps the old Results.
 
@@ -111,15 +114,16 @@ Watch the positive class when copying numbers from a paper. Here, LLM-written is
 
 ## Reading the summary
 
-One row per Detector and Generator.
+One row per Detector, Generator, Category and Edit count. Every Category is measured at the same threshold, set from the Human Samples.
 
 | column | meaning |
 | --- | --- |
-| `auroc` | how well Scores separate this Generator's code from human code (0.5 = chance) |
+| `category`, `edit_count` | which LLM-written Samples this row covers. `edit_count` is the number of Edit rules applied, and is empty except for Human-fixed |
+| `auroc` | how well Scores separate these Samples from human code (0.5 = chance) |
 | `threshold`, `threshold_source` | the cut-off used, from the paper or from `fpr_fallback` |
 | `achieved_fpr` | share of human Samples flagged at that threshold |
-| `miss_rate` | share of this Generator's Samples scored as human |
-| `paper_miss_rate`, `outdated` | the paper's figure, and whether ours is higher |
+| `miss_rate` | share of these Samples scored as human |
+| `paper_miss_rate`, `outdated` | the paper's figure, and whether ours is higher. Direct rows only, because papers measured plain LLM output |
 
 ## Open decisions
 

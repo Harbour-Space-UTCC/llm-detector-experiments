@@ -1,10 +1,10 @@
-"""Stage 1: build results/<experiment>/samples.csv from human code and Generators."""
+"""Stage 1: human.csv from problems.csv and direct.csv from the Generators, combined into samples.csv."""
 import os
 import re
 
 from openai import OpenAI
 
-from .common import ROOT, append_csv, done_ids, read_csv, results_dir
+from .common import CATEGORY_FILES, ROOT, append_csv, combine, done_ids, read_csv, results_dir
 
 _FENCE_PY = re.compile(r"```(?:python3?|py)[ \t]*\n(.*?)```", re.DOTALL)
 _FENCE_BARE = re.compile(r"```[ \t]*\n(.*?)```", re.DOTALL)
@@ -20,27 +20,28 @@ def human_samples(problems):
     human = problems[problems["human_code"].str.strip() != ""]
     nth = human.groupby("problem_id").cumcount().astype(str)
     return [
-        {"sample_id": f"human:{pid}:{n}", "problem_id": pid, "label": "human",
+        {"sample_id": f"human:{pid}:{n}", "problem_id": pid, "label": "human", "category": "Human",
          "generator": "human", "model_id": "", "code": code, "raw_response": ""}
         for pid, n, code in zip(human["problem_id"], nth, human["human_code"])
     ]
 
 
 def generate(cfg, force=False):
-    out = results_dir(cfg) / "samples.csv"
+    d = results_dir(cfg)
+    human_out, out = d / CATEGORY_FILES["Human"], d / CATEGORY_FILES["Direct"]
     if force:
         # Regenerated Samples reuse sample_ids, so old Scores would silently attach to new code.
-        out.unlink(missing_ok=True)
-        for f in (out.parent / "scores").glob("*.csv"):
-            f.unlink()
-        print("force: cleared samples.csv and all scores")
-    done = done_ids(out)
+        # Human-fixed Samples are edits of the old Direct code, so they go too.
+        for f in [*CATEGORY_FILES.values(), "samples.csv", *(d / "scores").glob("*.csv")]:
+            (d / f).unlink(missing_ok=True)
+        print("force: cleared every Category file, samples.csv and all scores")
+    done = done_ids(human_out) | done_ids(out)
     problems = read_csv(ROOT / cfg["problems"])
     template = (ROOT / cfg["template"]).read_text()
 
     human = [s for s in human_samples(problems) if s["sample_id"] not in done]
     if human:
-        append_csv(human, out)
+        append_csv(human, human_out)
     print(f"human: {len(human)} new Samples")
 
     client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
@@ -64,10 +65,12 @@ def generate(cfg, force=False):
             code = extract_code(raw)
             no_code += code == ""
             # One row per call: a crash loses at most the Sample in flight.
-            append_csv([{"sample_id": sid, "problem_id": pid, "label": "llm", "generator": g["name"],
+            append_csv([{"sample_id": sid, "problem_id": pid, "label": "llm", "category": "Direct",
+                         "generator": g["name"],
                          "model_id": g["model_id"], "code": code, "raw_response": raw}], out)
             new += 1
         print(f"{g['name']}: {new} new, {failed} failed (rerun to retry), {no_code} with no code block")
+    combine(d)
 
 
 if __name__ == "__main__":

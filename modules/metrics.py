@@ -1,4 +1,4 @@
-"""Stage 3: Scores -> results/<experiment>/summary.csv (one row per Detector x Generator)."""
+"""Stage 3: Scores -> results/<experiment>/summary.csv (one row per Detector x Generator x Category x Edit count)."""
 import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
@@ -27,7 +27,7 @@ def summarize(human, llm, threshold):
 
 def metrics(cfg):
     d = results_dir(cfg)
-    samples = read_csv(d / "samples.csv")[["sample_id", "label", "generator"]]
+    samples = read_csv(d / "samples.csv")[["sample_id", "category", "generator", "edit_count"]]
     rows = []
     for name, dcfg in cfg.get("detectors", {}).items():
         path = d / "scores" / f"{name}.csv"
@@ -36,7 +36,7 @@ def metrics(cfg):
             continue
         s = read_csv(path).merge(samples, on="sample_id")
         s["score"] = s["score"].astype(float)
-        human = s.loc[s["label"] == "human", "score"].to_numpy()
+        human = s.loc[s["category"] == "Human", "score"].to_numpy()  # one threshold for every Category
         if len(human) == 0:
             raise ValueError(f"{name}: no human Samples scored; FPR and AUROC need them")
         if "threshold" in dcfg:
@@ -44,10 +44,11 @@ def metrics(cfg):
         else:
             fpr = dcfg.get("fpr", cfg["fpr_fallback"])
             threshold, source = fallback_threshold(human, fpr), f"fpr={fpr}"
-        for gen, g in s[s["label"] == "llm"].groupby("generator"):
-            r = {"detector": name, "generator": gen, "threshold_source": source,
-                 **summarize(human, g["score"], threshold)}
-            if "paper_miss_rate" in dcfg:
+        llm = s[s["category"] != "Human"]
+        for (gen, cat, ec), g in llm.groupby(["generator", "category", "edit_count"]):
+            r = {"detector": name, "generator": gen, "category": cat, "edit_count": ec,
+                 "threshold_source": source, **summarize(human, g["score"], threshold)}
+            if "paper_miss_rate" in dcfg and cat == "Direct":  # papers measured plain LLM output
                 r["paper_miss_rate"] = dcfg["paper_miss_rate"]
                 r["outdated"] = r["miss_rate"] > dcfg["paper_miss_rate"]
             rows.append(r)

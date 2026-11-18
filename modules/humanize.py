@@ -19,9 +19,10 @@ from importlib.metadata import version
 
 import libcst as cst
 
-from .common import ROOT, append_csv, done_ids, read_csv, results_dir
+from .common import CATEGORY_FILES, ROOT, append_csv, combine, done_ids, read_csv, results_dir
 
 EDIT_COUNTS = (2, 5)
+HF_ID = r":hf\d+$"  # sample_id suffix of a Human-fixed Sample
 CANON = ["flatten", "fancy", "loops", "rename", "cut_comments", "debug_print", "spacing"]
 RESERVED = set(dir(builtins)) | set(keyword.kwlist) | set(keyword.softkwlist)
 # Short names students use. Names not listed become their first letter.
@@ -771,18 +772,20 @@ def script_version():
 
 def humanize(cfg, force=False):
     d = results_dir(cfg)
-    out = d / "human_fixed.csv"
+    out = d / CATEGORY_FILES["Human-fixed"]
     if force:
         out.unlink(missing_ok=True)
+        # Redone Human-fixed Samples reuse sample_ids, so their old Scores would attach to new code.
+        for f in (d / "scores").glob("*.csv"):
+            s = read_csv(f)
+            s[~s["sample_id"].str.contains(HF_ID)].to_csv(f, index=False)
     done = done_ids(out)
-    s = read_csv(d / "samples.csv")
-    # ponytail: label == "llm" means Direct until #6 adds the category column; it would also catch Style-prompted.
-    direct = s[s["category"] == "Direct"] if "category" in s else s[s["label"] == "llm"]
+    direct = read_csv(d / CATEGORY_FILES["Direct"])
     direct = direct[direct["code"].str.strip() != ""]
     ver = script_version()
     new = dropped = short = 0
     for r in direct.itertuples():
-        ids = {k: f"{r.sample_id}:hf{k}" for k in EDIT_COUNTS}
+        ids = {k: f"{r.sample_id}:hf{k}" for k in EDIT_COUNTS}  # matches HF_ID
         if all(i in done for i in ids.values()):
             continue
         try:
@@ -801,3 +804,4 @@ def humanize(cfg, force=False):
         new += len(rows)
     print(f"human-fixed: {new} new rows, {dropped} dropped (see status column), "
           f"{short} kept with fewer rules than their Edit count target")
+    combine(d)
