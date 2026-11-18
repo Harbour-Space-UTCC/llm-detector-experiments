@@ -149,6 +149,18 @@ def _method_called(node, name):
     return bool(hits)
 
 
+class _InDebugFString(cst.CSTTransformer):
+    """Tracks whether we are inside f"{expr=}", which prints expr's source text, so it must not change."""
+    debug = 0
+
+    def visit_FormattedStringExpression(self, node):
+        self.debug += node.equal is not None
+
+    def leave_FormattedStringExpression(self, original, updated):
+        self.debug -= original.equal is not None
+        return updated
+
+
 def _parens(expr):
     return expr if isinstance(expr, _ATOMS) or expr.lpar else expr.with_changes(
         lpar=[cst.LeftParen()], rpar=[cst.RightParen()])
@@ -217,10 +229,10 @@ def _tiny_helpers(module):
 
     calls = {name: 0 for name in helpers}
 
-    class Calls(cst.CSTVisitor):
+    class Calls(_InDebugFString):
         def visit_Call(self, n):
             f = n.func
-            if isinstance(f, cst.Name) and f.value in helpers and len(n.args) == len(helpers[f.value][0]) \
+            if not self.debug and isinstance(f, cst.Name) and f.value in helpers and len(n.args) == len(helpers[f.value][0]) \
                     and all(a.keyword is None and a.star == "" and _pure(a.value) for a in n.args):
                 calls[f.value] += 1
 
@@ -347,6 +359,8 @@ class _Fancy(cst.CSTTransformer):
         return updated
 
     def leave_Param(self, original, updated):
+        if updated.annotation is None:
+            return updated
         return updated.with_changes(annotation=None, equal=cst.MaybeSentinel.DEFAULT)
 
     def leave_FunctionDef(self, original, updated):
@@ -578,8 +592,14 @@ def rule_rename(module, rng):
         def visit_Nonlocal(self, n):
             protected.update(i.name.value for i in n.names)
 
+        def visit_FormattedStringExpression(self, n):
+            if n.equal is not None:
+                protected.update(_refs(n.expression))
+
     module.visit(V())
-    rename = sorted(n for n in _bound(module) - protected - attrs - keywords - RESERVED
+    # ponytail: one mapping per module, so names in different functions collide into a2, x3.
+    # Scope-aware renaming (libcst ScopeProvider) if the hand check (#10) says it looks unnatural.
+    rename = sorted(n for n in _bound(module) - protected - attrs - keywords - RESERVED - {"self", "cls"}
                     if not n.startswith("__") and (n in SHORT or len(n) > 3))
     taken = every | RESERVED
     mapping = {}
@@ -659,7 +679,7 @@ def rule_debug_print(module, rng):
 
 # ---------- rule: spacing ----------
 
-class _Spacing(cst.CSTTransformer):
+class _Spacing(_InDebugFString):
     def __init__(self, rng):
         self.rng = rng
 
@@ -671,7 +691,7 @@ class _Spacing(cst.CSTTransformer):
 
     def leave_BinaryOperation(self, original, updated):
         op = updated.operator
-        if self.rng.random() < 0.5 and isinstance(op.whitespace_before, cst.SimpleWhitespace) \
+        if not self.debug and self.rng.random() < 0.5 and isinstance(op.whitespace_before, cst.SimpleWhitespace) \
                 and isinstance(op.whitespace_after, cst.SimpleWhitespace):
             return updated.with_changes(operator=op.with_changes(
                 whitespace_before=cst.SimpleWhitespace(""), whitespace_after=cst.SimpleWhitespace("")))
@@ -760,7 +780,7 @@ def humanize(cfg, force=False):
     direct = s[s["category"] == "Direct"] if "category" in s else s[s["label"] == "llm"]
     direct = direct[direct["code"].str.strip() != ""]
     ver = script_version()
-    new = dropped = 0
+    new = dropped = short = 0
     for r in direct.itertuples():
         ids = {k: f"{r.sample_id}:hf{k}" for k in EDIT_COUNTS}
         if all(i in done for i in ids.values()):
@@ -772,13 +792,15 @@ def humanize(cfg, force=False):
         rows = []
         for k, (code, applied, status) in results.items():
             dropped += status != "kept"
+            short += status == "kept" and len(applied) < k
             rows.append({"sample_id": ids[k], "source_id": r.sample_id, "problem_id": r.problem_id,
                          "label": "llm", "generator": r.generator, "model_id": r.model_id,
                          "category": "Human-fixed", "edit_count": len(applied), "rules": ";".join(applied),
                          "seed": seed, "script_version": ver, "status": status, "code": code})
         append_csv(rows, out)  # one Direct Sample per write, so a crash resumes
         new += len(rows)
-    print(f"human-fixed: {new} new rows, {dropped} dropped (see status column)")
+    print(f"human-fixed: {new} new rows, {dropped} dropped (see status column), "
+          f"{short} kept with fewer rules than their Edit count target")
 
 
 # ---------- self-check ----------
@@ -825,7 +847,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-''', "4\n1 2 3 4\n"), (
+''', "4\n1 2 3 4\n", True), (
     '''"""Maximum subarray sum."""
 import sys
 
@@ -849,7 +871,72 @@ answer = max_subarray(data)
 for i in range(1, n, 2):
     answer += data[i] * 0
 print(f"{n} {answer}")
-''', "5\n-2 1 -3 4 -1\n")]
+''', "5\n-2 1 -3 4 -1\n", True), (
+    # Traps: every rule must back off here, so fewer rules may apply.
+    '''class Account:
+    def __init__(self, total):
+        self.total = total
+
+    def add(self, amount):
+        self.total += amount
+        return self.total
+
+
+def area(width, height):
+    return width * height
+
+
+def double(value):
+    return value * 2
+
+
+def shout(text):
+    return str(text).upper()
+
+
+def smaller(a, b):
+    return min(a, b)
+
+
+def pick():
+    min = 3
+    return smaller(min, 2)
+
+
+def show_pairs(xs, ys):
+    for a, b in zip(xs, ys):
+        print(a, b)
+
+
+def main():
+    total = 5
+    amount_left = 9
+    acct = Account(total)
+    print(f"{amount_left=}")
+    print(f"{acct.add(3) + total=}")
+    print(f"{shout(total)=}")
+    print(area(width=2, height=3))
+    first = double(int(input()))
+    print(f"{first + 1=}", first)
+    for i in range(3):
+        pass
+    print(i)
+    for k in range(4):
+        if k == 1:
+            continue
+        print(k)
+    v = 7
+    squares = [v * v for v in [1, 2, 3]]
+    print(squares, v)
+    scores = {"a": 1, "b": 2}
+    for pos, key in enumerate(scores):
+        print(pos, key)
+    print(pick())
+
+
+main()
+show_pairs([1, 2], [3, 4])
+''', "4\n", False)]
 
 
 def _run(code, stdin):
@@ -860,7 +947,7 @@ def _run(code, stdin):
 
 if __name__ == "__main__":
     changed = set()
-    for src, stdin in _PROGRAMS:
+    for src, stdin, full in _PROGRAMS:
         want = _run(src, stdin)
         assert want[0] == 0, "test program itself fails"
         m = cst.parse_module(src)
@@ -876,7 +963,7 @@ if __name__ == "__main__":
             assert (seed, res) == edit(src, sid), "not repeatable"
             (c2, a2, s2), (c5, a5, s5) = res[2], res[5]
             assert s2 == s5 == "kept" and set(a2) <= set(a5), (a2, a5)
-            assert len(a2) == 2 and len(a5) == 5, (a2, a5)
+            assert not full or (len(a2) == 2 and len(a5) == 5), (a2, a5)
             for c in (c2, c5):
                 assert _run(c, stdin) == want, f"{sid} changed the output:\n{c}"
     assert changed == set(CANON), f"rules that never fired: {set(CANON) - changed}"
