@@ -32,9 +32,9 @@ config.toml              what to run: experiment name, Generators, Detectors, pa
 inputs/template.txt      Prompt Template, must contain {problem}
 inputs/problems.csv      problem_id, statement, human_code (one row per human solution)
 detectors/<name>.py      one file per Detector
-modules/                 pipeline code (generate, score, metrics)
+modules/                 pipeline code (generate, humanize, score, metrics)
 colab.ipynb              the notebook everyone runs
-results/<experiment>/    samples.csv, scores/, summary.csv
+results/<experiment>/    samples.csv, human_fixed.csv, scores/, summary.csv
 GLOSSARY.md              shared vocabulary
 ```
 
@@ -66,6 +66,7 @@ Teammates normally edit only `config.toml`, `inputs/` and their own `detectors/<
 | Rescore one Detector after changing its code | `score(cfg, only="<name>", force=True)` then `metrics(cfg)` |
 | Score a newly added Detector | `score(cfg, only="<name>")` then `metrics(cfg)` |
 | Add a Generator to an existing experiment | add it to `config.toml`, then `generate(cfg)`, `score(cfg)`, `metrics(cfg)`. Only the new Samples are generated and scored |
+| Redo Human-fixed Samples after changing `modules/humanize.py` | `humanize(cfg, force=True)`. Each row records the `script_version` that made it |
 | Regenerate everything after changing the template or problems | `generate(cfg, force=True)`. This re-bills the API and deletes all Scores of that experiment |
 
 Stages skip work by `sample_id`. Editing `template.txt`, a Generator's `model_id` or `problems.csv` has no effect until you regenerate with `force=True`. A different `experiment` name is usually the better choice, because it keeps the old Results.
@@ -131,4 +132,5 @@ Run these after changing anything in `modules/`:
 ```bash
 python -m modules.metrics    # threshold, AUROC and miss-rate logic
 python -m modules.generate   # code-block extraction
+python -m modules.humanize   # each Edit rule keeps output the same; Edit count 5 includes Edit count 2
 ```
