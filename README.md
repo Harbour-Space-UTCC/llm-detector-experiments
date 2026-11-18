@@ -132,5 +132,5 @@ Run these after changing anything in `modules/`:
 ```bash
 python -m modules.metrics    # threshold, AUROC and miss-rate logic
 python -m modules.generate   # code-block extraction
-python -m modules.humanize   # each Edit rule keeps output the same; Edit count 5 includes Edit count 2
+python -m pytest tests/      # Edit rules keep output the same; Edit count 5 includes Edit count 2
 ```
