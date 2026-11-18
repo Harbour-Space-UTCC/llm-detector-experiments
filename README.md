@@ -1,8 +1,19 @@
 # llm-detector-results
 
-Do published detectors of LLM-written code still catch code from today's frontier LLMs, or has their miss rate gone up since their papers were written?
+How well do published detectors of LLM-written code catch it in each of four Categories: Human, Direct, Style-prompted and Human-fixed? For Direct code, has their miss rate gone up since their papers were written?
 
 This repo is where the team's pieces come together and get run. One teammate supplies the Problems and the Prompt Template. Others add Detectors. Everyone runs the same notebook, and the Results are committed here. Terms such as Sample, Run and Miss rate are defined in [GLOSSARY.md](GLOSSARY.md).
+
+## Categories
+
+Every Sample belongs to one of four Categories. The names in the first column are the ones used in code and Results. The second column gives the names used in earlier notes.
+
+| Category | Also called | What it is |
+| --- | --- | --- |
+| Human | Human only | Code written by a person |
+| Direct | AI only (prompt) | LLM code from `inputs/template.txt`, which only asks for a solution |
+| Style-prompted | AI + refine prompt | LLM code from `inputs/style_template.txt`, which also asks for code that looks human-written |
+| Human-fixed | AI + Human fix | A Direct Sample after a script applies a set number of Edit rules (the Edit count) |
 
 ## How it works
 

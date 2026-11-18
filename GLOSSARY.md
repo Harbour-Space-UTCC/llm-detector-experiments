@@ -1,6 +1,6 @@
 # Glossary
 
-**Question**: The one thing an Experiment sets out to answer (e.g. "Do published detectors still catch code written by frontier LLMs?").
+**Question**: The one thing an Experiment sets out to answer (e.g. "How well do published detectors catch LLM-written code in each Category?").
 
 **Experiment**: A fixed design that answers one Question: a set of Detectors, Datasets and Metrics.
 
@@ -24,6 +24,22 @@
 
 **Miss rate**: Share of LLM-written Samples a Detector scores as human at a given threshold. The threshold is the paper's own. When the paper gives none, it is the one that flags the paper's FPR share of human Samples, or 5% if the paper states no FPR either.
 
-**Outdated**: A Detector whose miss rate on frontier Generators is higher than the miss rate its paper reported.
+**Outdated**: A Detector whose miss rate on Direct Samples from frontier Generators is higher than the miss rate its paper reported. Only Direct is compared, because papers measured plain LLM output.
+
+**Category**: How a Sample came to be written. Every Sample has exactly one: Human, Direct, Style-prompted or Human-fixed. _Avoid_: condition, type, source.
+
+**Human**: Category of Samples written by a person. The only Category labelled human.
+
+**Direct**: Category of LLM-written Samples from the plain Prompt Template, which asks only for a solution to the Problem. _Avoid_: AI only, pure AI.
+
+**Style-prompted**: Category of LLM-written Samples from a Style Prompt Template. _Avoid_: AI + refine prompt, humanized prompt.
+
+**Style Prompt Template**: A Prompt Template that also asks the Generator to write code that looks human-written.
+
+**Human-fixed**: Category of LLM-written Samples made by applying Edit rules to a Direct Sample, the way a student might touch up code before handing it in. Still labelled LLM-written, and keeps the Generator of the Sample it was made from. _Avoid_: AI + human fix, humanized, perturbed.
+
+**Edit rule**: One fixed, mechanical change used to make a Human-fixed Sample (e.g. rename variables to short names, remove comments).
+
+**Edit count**: How many Edit rules were applied to a Human-fixed Sample (e.g. 2 or 5). _Avoid_: light, heavy, edit level.
 
 **Positive class**: LLM-written. Every rate (TPR, FPR) counts LLM-written code as positive. _Avoid_: papers' "FPR" when they made human code positive.
