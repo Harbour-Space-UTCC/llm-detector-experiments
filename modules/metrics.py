@@ -29,9 +29,12 @@ def median_lines(codes):
     return float(np.median([len(c.splitlines()) for c in codes]))
 
 
+ALL = "all"  # human_split of the row that uses every Human Sample
+
+
 def human_splits(human):
     """("all", all Human rows), then one subset per Post type and per site. Blank values (non-forum Problems) are skipped."""
-    yield "all", human
+    yield ALL, human
     for col in ("post_type", "site"):
         for value, g in human.groupby(col):
             if value:
@@ -40,8 +43,8 @@ def human_splits(human):
 
 def metrics(cfg):
     d = results_dir(cfg)
-    samples = read_csv(d / "samples.csv").reindex(
-        columns=["sample_id", "category", "generator", "edit_count", "post_type", "site", "code"], fill_value="")
+    samples = read_csv(d / "samples.csv")[
+        ["sample_id", "category", "generator", "edit_count", "post_type", "site", "code"]]
     rows = []
     for name, dcfg in cfg.get("detectors", {}).items():
         path = d / "scores" / f"{name}.csv"
@@ -60,13 +63,14 @@ def metrics(cfg):
             fpr = dcfg.get("fpr", cfg["fpr_fallback"])
             threshold, source = fallback_threshold(human, fpr), f"fpr={fpr}"
         llm = s[s["category"] != "Human"]
+        splits = [(name_, h, median_lines(h["code"])) for name_, h in human_splits(human_rows)]
         for (gen, cat, ec), g in llm.groupby(["generator", "category", "edit_count"]):
-            for split, h in human_splits(human_rows):
+            for split, h, h_lines in splits:
                 r = {"detector": name, "generator": gen, "category": cat, "edit_count": ec,
                      "human_split": split, "threshold_source": source,
                      **summarize(h["score"], g["score"], threshold),
-                     "median_lines": median_lines(g["code"]), "human_median_lines": median_lines(h["code"])}
-                if "paper_miss_rate" in dcfg and cat == "Direct" and split == "all":  # papers measured plain LLM output
+                     "median_lines": median_lines(g["code"]), "human_median_lines": h_lines}
+                if "paper_miss_rate" in dcfg and cat == "Direct" and split == ALL:  # papers measured plain LLM output
                     r["paper_miss_rate"] = dcfg["paper_miss_rate"]
                     r["outdated"] = r["miss_rate"] > dcfg["paper_miss_rate"]
                 rows.append(r)

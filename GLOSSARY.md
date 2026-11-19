@@ -32,6 +32,8 @@
 
 **Post type**: Where in a forum post a Human Sample's code came from: `question` (the asker's own attempt, often broken) or `answer` (a reply that solves the Problem). _Avoid_: code source, origin.
 
+**Human split**: A subset of the Human Samples (all of them, one Post type, or one site) that a summary row's LLM-written Samples are compared against. Shows whether a Detector separates human from LLM code or only one kind of human code from another.
+
 **Direct**: Category of LLM-written Samples from the plain Prompt Template, which asks only for a solution to the Problem. _Avoid_: AI only, pure AI.
 
 **Style-prompted**: Category of LLM-written Samples from a Style Prompt Template. _Avoid_: AI + refine prompt, humanized prompt.
