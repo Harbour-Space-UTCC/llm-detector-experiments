@@ -1,4 +1,4 @@
-"""Stage 3: Scores -> results/<experiment>/summary.csv (one row per Detector x Generator x Category x Edit count)."""
+"""Stage 3: Scores -> results/<experiment>/summary.csv (one row per Detector x Generator x Category x Edit count x human split)."""
 import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
@@ -25,9 +25,23 @@ def summarize(human, llm, threshold):
     }
 
 
+def median_lines(codes):
+    return float(np.median([len(c.splitlines()) for c in codes]))
+
+
+def human_splits(human):
+    """("all", all Human rows), then one subset per Post type and per site. Blank values (non-forum Problems) are skipped."""
+    yield "all", human
+    for col in ("post_type", "site"):
+        for value, g in human.groupby(col):
+            if value:
+                yield f"{col}={value}", g
+
+
 def metrics(cfg):
     d = results_dir(cfg)
-    samples = read_csv(d / "samples.csv")[["sample_id", "category", "generator", "edit_count"]]
+    samples = read_csv(d / "samples.csv").reindex(
+        columns=["sample_id", "category", "generator", "edit_count", "post_type", "site", "code"], fill_value="")
     rows = []
     for name, dcfg in cfg.get("detectors", {}).items():
         path = d / "scores" / f"{name}.csv"
@@ -36,7 +50,8 @@ def metrics(cfg):
             continue
         s = read_csv(path).merge(samples, on="sample_id")
         s["score"] = s["score"].astype(float)
-        human = s.loc[s["category"] == "Human", "score"].to_numpy()  # one threshold for every Category
+        human_rows = s[s["category"] == "Human"]
+        human = human_rows["score"].to_numpy()  # one threshold for every Category and human split
         if len(human) == 0:
             raise ValueError(f"{name}: no human Samples scored; FPR and AUROC need them")
         if "threshold" in dcfg:
@@ -46,12 +61,15 @@ def metrics(cfg):
             threshold, source = fallback_threshold(human, fpr), f"fpr={fpr}"
         llm = s[s["category"] != "Human"]
         for (gen, cat, ec), g in llm.groupby(["generator", "category", "edit_count"]):
-            r = {"detector": name, "generator": gen, "category": cat, "edit_count": ec,
-                 "threshold_source": source, **summarize(human, g["score"], threshold)}
-            if "paper_miss_rate" in dcfg and cat == "Direct":  # papers measured plain LLM output
-                r["paper_miss_rate"] = dcfg["paper_miss_rate"]
-                r["outdated"] = r["miss_rate"] > dcfg["paper_miss_rate"]
-            rows.append(r)
+            for split, h in human_splits(human_rows):
+                r = {"detector": name, "generator": gen, "category": cat, "edit_count": ec,
+                     "human_split": split, "threshold_source": source,
+                     **summarize(h["score"], g["score"], threshold),
+                     "median_lines": median_lines(g["code"]), "human_median_lines": median_lines(h["code"])}
+                if "paper_miss_rate" in dcfg and cat == "Direct" and split == "all":  # papers measured plain LLM output
+                    r["paper_miss_rate"] = dcfg["paper_miss_rate"]
+                    r["outdated"] = r["miss_rate"] > dcfg["paper_miss_rate"]
+                rows.append(r)
     summary = pd.DataFrame(rows)
     summary.to_csv(d / "summary.csv", index=False)
     return summary
