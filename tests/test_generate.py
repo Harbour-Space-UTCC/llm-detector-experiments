@@ -1,4 +1,3 @@
-"""generate(): Direct and, when `style_template` is set, Style-prompted Samples, with a fake client."""
 import pytest
 
 from modules import common, generate as gen
@@ -60,13 +59,13 @@ def test_style_samples_use_style_template_and_id(cfg):
 def test_rerun_skips_and_force_clears(cfg):
     cfg["style_template"] = "inputs/style_template.txt"
     gen.generate(cfg)
-    n = len(FakeClient.prompts)
+    calls_after_first_run = len(FakeClient.prompts)
     gen.generate(cfg)
-    assert len(FakeClient.prompts) == n  # nothing regenerated
+    assert len(FakeClient.prompts) == calls_after_first_run
     d = common.results_dir(cfg)
     pd.DataFrame({"sample_id": ["g:p1:style"], "score": [0.5]}).to_csv(d / "scores" / "fake.csv", index=False)
     gen.generate(cfg, force=True)
-    assert len(FakeClient.prompts) == 2 * n
+    assert len(FakeClient.prompts) == 2 * calls_after_first_run
     assert not (d / "scores" / "fake.csv").exists()
 
 
@@ -81,6 +80,14 @@ def test_adding_style_template_later_generates_only_style(cfg):
 def test_missing_style_template_fails_before_any_call(cfg):
     cfg["style_template"] = "inputs/nope.txt"
     with pytest.raises(FileNotFoundError):
+        gen.generate(cfg)
+    assert FakeClient.prompts == []
+
+
+def test_template_without_placeholder_fails_before_any_call(cfg):
+    (common.ROOT / "inputs/style_template.txt").write_text("STYLE with no placeholder")
+    cfg["style_template"] = "inputs/style_template.txt"
+    with pytest.raises(ValueError, match="placeholder"):
         gen.generate(cfg)
     assert FakeClient.prompts == []
 

@@ -1,6 +1,7 @@
 """Stage 1: human.csv from problems.csv, direct.csv (and style_prompted.csv when `style_template` is set) from the Generators, combined into samples.csv."""
 import os
 import re
+from typing import NamedTuple
 
 from openai import OpenAI
 
@@ -14,6 +15,19 @@ def extract_code(text):
     """First ```python block, else first untagged block, else "" (never the prose)."""
     m = _FENCE_PY.search(text) or _FENCE_BARE.search(text)
     return m.group(1).strip() if m else ""
+
+
+class Pass(NamedTuple):
+    category: str
+    template: str
+    id_suffix: str
+
+
+def read_template(path):
+    text = (ROOT / path).read_text()
+    if "{problem}" not in text:
+        raise ValueError(f"{path} has no {{problem}} placeholder, so every prompt would omit the Problem")
+    return text
 
 
 def human_samples(problems):
@@ -37,12 +51,10 @@ def generate(cfg, force=False):
         for f in [*CATEGORY_FILES.values(), "samples.csv", *(d / "scores").glob("*.csv")]:
             (d / f).unlink(missing_ok=True)
         print("force: cleared every Category file, samples.csv and all scores")
-    # (Category, Prompt Template text, sample_id suffix). Style-prompted only when its template is configured.
-    # Templates are read now, so a bad path fails before any paid API call.
-    to_generate = [("Direct", (ROOT / cfg["template"]).read_text(), "")]
+    passes = [Pass("Direct", read_template(cfg["template"]), "")]
     if cfg.get("style_template"):
-        to_generate.append(("Style-prompted", (ROOT / cfg["style_template"]).read_text(), ":style"))
-    done = done_ids(human_out).union(*(done_ids(d / CATEGORY_FILES[c]) for c, _, _ in to_generate))
+        passes.append(Pass("Style-prompted", read_template(cfg["style_template"]), ":style"))
+    done = done_ids(human_out).union(*(done_ids(d / CATEGORY_FILES[p.category]) for p in passes))
     problems = read_csv(ROOT / cfg["problems"])
 
     human = [s for s in human_samples(problems) if s["sample_id"] not in done]
@@ -54,7 +66,7 @@ def generate(cfg, force=False):
     unique = problems.drop_duplicates("problem_id")
     for g in cfg["generators"]:
         options = {"temperature": g["temperature"]} if "temperature" in g else {}
-        for category, template, suffix in to_generate:
+        for category, template, suffix in passes:
             out = d / CATEGORY_FILES[category]
             new = failed = no_code = 0
             for pid, statement in zip(unique["problem_id"], unique["statement"]):
