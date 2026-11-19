@@ -39,7 +39,7 @@ def cfg(tmp_path, monkeypatch):
             "detectors": {"fake": {"threshold": 0.5}}}
 
 
-def test_without_key_nothing_changes(cfg):
+def test_without_style_template_nothing_changes(cfg):
     gen.generate(cfg)
     d = common.results_dir(cfg)
     assert not (d / "style_prompted.csv").exists()
@@ -70,13 +70,36 @@ def test_rerun_skips_and_force_clears(cfg):
     assert not (d / "scores" / "fake.csv").exists()
 
 
-def test_human_fixed_only_from_direct_and_summary_has_style_rows(cfg):
+def test_adding_style_template_later_generates_only_style(cfg):
+    gen.generate(cfg)
+    FakeClient.prompts = []
+    cfg["style_template"] = "inputs/style_template.txt"
+    gen.generate(cfg)
+    assert sorted(FakeClient.prompts) == ["STYLE Add it", "STYLE Sum it"]
+
+
+def test_missing_style_template_fails_before_any_call(cfg):
+    cfg["style_template"] = "inputs/nope.txt"
+    with pytest.raises(FileNotFoundError):
+        gen.generate(cfg)
+    assert FakeClient.prompts == []
+
+
+def test_human_fixed_only_from_direct(cfg):
     cfg["style_template"] = "inputs/style_template.txt"
     gen.generate(cfg)
     humanize(cfg)
+    s = read_csv(common.results_dir(cfg) / "samples.csv")
+    hf = s[s["category"] == "Human-fixed"]
+    assert len(hf) and not hf["source_id"].str.endswith(":style").any()
+
+
+def test_summary_has_style_rows_for_each_generator(cfg):
+    cfg["style_template"] = "inputs/style_template.txt"
+    cfg["generators"].append({"name": "g2", "model_id": "m2"})
+    gen.generate(cfg)
     d = common.results_dir(cfg)
     s = read_csv(d / "samples.csv")
-    hf = s[s["category"] == "Human-fixed"]
-    assert not hf["source_id"].str.endswith(":style").any()
     pd.DataFrame({"sample_id": s["sample_id"], "score": 0.5}).to_csv(d / "scores" / "fake.csv", index=False)
-    assert "Style-prompted" in set(metrics(cfg)["category"])
+    out = metrics(cfg)
+    assert set(out.loc[out["category"] == "Style-prompted", "generator"]) == {"g", "g2"}

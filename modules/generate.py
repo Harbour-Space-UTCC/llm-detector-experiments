@@ -37,11 +37,12 @@ def generate(cfg, force=False):
         for f in [*CATEGORY_FILES.values(), "samples.csv", *(d / "scores").glob("*.csv")]:
             (d / f).unlink(missing_ok=True)
         print("force: cleared every Category file, samples.csv and all scores")
-    # (Category, template file, sample_id suffix). Style-prompted only when its template is configured.
-    kinds = [("Direct", cfg["template"], "")]
-    if "style_template" in cfg:
-        kinds.append(("Style-prompted", cfg["style_template"], ":style"))
-    done = done_ids(human_out).union(*(done_ids(d / CATEGORY_FILES[c]) for c, _, _ in kinds))
+    # (Category, Prompt Template text, sample_id suffix). Style-prompted only when its template is configured.
+    # Templates are read now, so a bad path fails before any paid API call.
+    to_generate = [("Direct", (ROOT / cfg["template"]).read_text(), "")]
+    if cfg.get("style_template"):
+        to_generate.append(("Style-prompted", (ROOT / cfg["style_template"]).read_text(), ":style"))
+    done = done_ids(human_out).union(*(done_ids(d / CATEGORY_FILES[c]) for c, _, _ in to_generate))
     problems = read_csv(ROOT / cfg["problems"])
 
     human = [s for s in human_samples(problems) if s["sample_id"] not in done]
@@ -53,8 +54,7 @@ def generate(cfg, force=False):
     unique = problems.drop_duplicates("problem_id")
     for g in cfg["generators"]:
         options = {"temperature": g["temperature"]} if "temperature" in g else {}
-        for category, template_file, suffix in kinds:
-            template = (ROOT / template_file).read_text()
+        for category, template, suffix in to_generate:
             out = d / CATEGORY_FILES[category]
             new = failed = no_code = 0
             for pid, statement in zip(unique["problem_id"], unique["statement"]):
