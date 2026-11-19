@@ -33,7 +33,8 @@ Each stage skips work that is already on disk, so a crash or a rerun picks up wh
 ```
 config.toml              what to run: experiment name, Generators, Detectors, paper numbers
 inputs/template.txt      Prompt Template, must contain {problem}
-inputs/problems.csv      problem_id, statement, human_code (one row per human solution)
+inputs/datasets.csv      scraped forum posts, as delivered (never edit)
+inputs/problems.csv      problem_id, statement, human_code, post_type, site (made by modules/problems.py)
 detectors/<name>.py      one file per Detector
 modules/                 pipeline code (generate, humanize, score, metrics)
 colab.ipynb              the notebook everyone runs
@@ -76,15 +77,31 @@ Stages skip work by `sample_id`. Editing `template.txt`, a Generator's `model_id
 
 ## Inputs
 
-**`inputs/problems.csv`**: one row per human solution.
+**`inputs/datasets.csv`**: 1,071 forum posts scraped by the team (Stack Overflow, Code Review, GitHub), kept byte-for-byte as delivered. It is the provenance reference: join it to anything by `problem_id` = `sample_id`.
 
 | column | meaning |
 | --- | --- |
-| `problem_id` | stable ID, repeated on every row of the same Problem |
-| `statement` | the problem text put into the template |
-| `human_code` | one human Python solution, or empty if there is none |
+| `sample_id` | unique row ID (the H/N/F prefix only says which teammate scraped it) |
+| `site` | `stackoverflow`, `codereview` or `github` |
+| `code_source` | Post type: `question` (asker's own code) or `answer` |
+| `question_id`, `answer_id` | IDs on the site. `question_id` is not unique across sites |
+| `question_title`, `question_text` | the post's title and text, with the code already stripped out |
+| `code` | the code taken from the post |
+| `code_lines`, `code_parses` | line count, and whether the code parses as Python 3 |
+| `post_created_utc`, `post_last_edited_utc`, `post_score`, `tags` | post metadata |
+| `author`, `author_link`, `link`, `question_link`, `license` | attribution |
 
-Human Sample IDs follow row order, so append new solutions at the end of a Problem's rows rather than inserting them.
+**`inputs/problems.csv`**: one Problem per kept post, with its one human solution. Generated, so do not edit it by hand. Run `python -m modules.problems` to rebuild it (this overwrites the file) whenever a rule changes. It keeps only rows with `code_parses=True` (687 of 1,071), because unparseable human code would give the label away and AST-based Detectors cannot read it. Both Post types are kept.
+
+| column | meaning |
+| --- | --- |
+| `problem_id` | the row's `sample_id` |
+| `statement` | post title, a blank line, then the post text (code is not put back) |
+| `human_code` | the post's code |
+| `post_type` | `question` or `answer`, copied to the human Sample |
+| `site` | copied to the human Sample |
+
+Human Samples carry `post_type` and `site` in `human.csv` and `samples.csv`, so Results can later be split by them.
 
 **`inputs/template.txt`**: the full prompt sent to every Generator. `{problem}` is replaced with the statement. Ask for a single ```` ```python ```` block, because the code is extracted from the first one.
 
