@@ -1,4 +1,4 @@
-"""Stage 1: human.csv from problems.csv and direct.csv from the Generators, combined into samples.csv."""
+"""Stage 1: human.csv from problems.csv, direct.csv (and style_prompted.csv when `style_template` is set) from the Generators, combined into samples.csv."""
 import os
 import re
 
@@ -30,16 +30,19 @@ def human_samples(problems):
 
 def generate(cfg, force=False):
     d = results_dir(cfg)
-    human_out, out = d / CATEGORY_FILES["Human"], d / CATEGORY_FILES["Direct"]
+    human_out = d / CATEGORY_FILES["Human"]
     if force:
         # Regenerated Samples reuse sample_ids, so old Scores would silently attach to new code.
         # Human-fixed Samples are edits of the old Direct code, so they go too.
         for f in [*CATEGORY_FILES.values(), "samples.csv", *(d / "scores").glob("*.csv")]:
             (d / f).unlink(missing_ok=True)
         print("force: cleared every Category file, samples.csv and all scores")
-    done = done_ids(human_out) | done_ids(out)
+    # (Category, template file, sample_id suffix). Style-prompted only when its template is configured.
+    kinds = [("Direct", cfg["template"], "")]
+    if "style_template" in cfg:
+        kinds.append(("Style-prompted", cfg["style_template"], ":style"))
+    done = done_ids(human_out).union(*(done_ids(d / CATEGORY_FILES[c]) for c, _, _ in kinds))
     problems = read_csv(ROOT / cfg["problems"])
-    template = (ROOT / cfg["template"]).read_text()
 
     human = [s for s in human_samples(problems) if s["sample_id"] not in done]
     if human:
@@ -50,28 +53,31 @@ def generate(cfg, force=False):
     unique = problems.drop_duplicates("problem_id")
     for g in cfg["generators"]:
         options = {"temperature": g["temperature"]} if "temperature" in g else {}
-        new = failed = no_code = 0
-        for pid, statement in zip(unique["problem_id"], unique["statement"]):
-            sid = f"{g['name']}:{pid}"
-            if sid in done:
-                continue
-            prompt = template.replace("{problem}", statement)
-            try:
-                r = client.chat.completions.create(
-                    model=g["model_id"], messages=[{"role": "user", "content": prompt}], **options)
-                raw = r.choices[0].message.content or ""
-            except Exception as e:  # not written, so the next call retries it
-                failed += 1
-                print(f"  {sid} failed: {e}")
-                continue
-            code = extract_code(raw)
-            no_code += code == ""
-            # One row per call: a crash loses at most the Sample in flight.
-            append_csv([{"sample_id": sid, "problem_id": pid, "label": "llm", "category": "Direct",
-                         "generator": g["name"],
-                         "model_id": g["model_id"], "code": code, "raw_response": raw}], out)
-            new += 1
-        print(f"{g['name']}: {new} new, {failed} failed (rerun to retry), {no_code} with no code block")
+        for category, template_file, suffix in kinds:
+            template = (ROOT / template_file).read_text()
+            out = d / CATEGORY_FILES[category]
+            new = failed = no_code = 0
+            for pid, statement in zip(unique["problem_id"], unique["statement"]):
+                sid = f"{g['name']}:{pid}{suffix}"
+                if sid in done:
+                    continue
+                prompt = template.replace("{problem}", statement)
+                try:
+                    r = client.chat.completions.create(
+                        model=g["model_id"], messages=[{"role": "user", "content": prompt}], **options)
+                    raw = r.choices[0].message.content or ""
+                except Exception as e:  # not written, so the next call retries it
+                    failed += 1
+                    print(f"  {sid} failed: {e}")
+                    continue
+                code = extract_code(raw)
+                no_code += code == ""
+                # One row per call: a crash loses at most the Sample in flight.
+                append_csv([{"sample_id": sid, "problem_id": pid, "label": "llm", "category": category,
+                             "generator": g["name"],
+                             "model_id": g["model_id"], "code": code, "raw_response": raw}], out)
+                new += 1
+            print(f"{g['name']} {category}: {new} new, {failed} failed (rerun to retry), {no_code} with no code block")
     combine(d)
 
 

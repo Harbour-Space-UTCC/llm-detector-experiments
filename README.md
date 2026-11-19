@@ -19,7 +19,7 @@ Every Sample belongs to one of four Categories. The names in the first column ar
 
 Four stages run in order. Each one reads files and writes files, so you can rerun any stage on its own.
 
-1. **Generate**: for every Generator in `config.toml`, fill the Prompt Template with each Problem, ask the model, and keep the first Python code block. Human solutions from `problems.csv` become human Samples. Output: `human.csv` and `direct.csv` in `results/<experiment>/`.
+1. **Generate**: for every Generator in `config.toml`, fill the Prompt Template with each Problem, ask the model, and keep the first Python code block. Human solutions from `problems.csv` become human Samples. If `style_template` is set in `config.toml`, every Generator is asked a second time per Problem with the Style Prompt Template, giving Style-prompted Samples with `sample_id` `<generator>:<problem>:style`. Output: `human.csv`, `direct.csv` and, when `style_template` is set, `style_prompted.csv` in `results/<experiment>/`. Humanize edits Direct Samples only.
 2. **Humanize**: edit every Direct Sample with Edit rules at Edit count 2 and 5. Output: `human_fixed.csv`, with the rules, seed and script version of each row.
 3. **Score**: run each Detector over every Sample. Output: `results/<experiment>/scores/<detector>.csv`.
 4. **Metrics**: per Detector, Generator, Category, Edit count and human split, compute AUROC and the miss rate at a threshold, and compare with the paper's miss rate. Output: `results/<experiment>/summary.csv`.
@@ -104,6 +104,8 @@ Stages skip work by `sample_id`. Editing `template.txt`, a Generator's `model_id
 Human Samples carry `post_type` and `site` in `human.csv` and `samples.csv`, so the summary splits the Human side by them.
 
 **`inputs/template.txt`**: the full prompt sent to every Generator. `{problem}` is replaced with the statement. Ask for a single ```` ```python ```` block, because the code is extracted from the first one.
+
+**`inputs/style_template.txt`**: the Style Prompt Template, used only when `style_template = "inputs/style_template.txt"` is set in `config.toml`. Same rules as `template.txt` (`{problem}`, a single ```` ```python ```` block), and it also asks for code that looks human-written. Freeze it before the first generation run: changing it means regenerating every Style-prompted Sample.
 
 **Generators** live in `config.toml`:
 
