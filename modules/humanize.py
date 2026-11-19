@@ -19,10 +19,10 @@ from importlib.metadata import version
 
 import libcst as cst
 
-from .common import CATEGORY_FILES, ROOT, append_csv, combine, done_ids, read_csv, results_dir
+from .common import CATEGORY_FILES, FORMATTED_FILE, ROOT, append_csv, combine, done_ids, read_csv, results_dir
 
 EDIT_COUNTS = (2, 5)
-HF_ID = r":hf\d+$"  # sample_id suffix of a Human-fixed Sample
+HF_ID = r":hf\d+(?::fmt)?$"  # sample_id suffix of a Human-fixed Sample or its formatted copy
 CANON = ["flatten", "fancy", "loops", "rename", "cut_comments", "debug_print", "spacing"]
 RESERVED = set(dir(builtins)) | set(keyword.kwlist) | set(keyword.softkwlist)
 # Short names students use. Names not listed become their first letter.
@@ -779,6 +779,10 @@ def humanize(cfg, force=False):
         for f in (d / "scores").glob("*.csv"):
             s = read_csv(f)
             s[~s["sample_id"].str.contains(HF_ID)].to_csv(f, index=False)
+        copies = d / FORMATTED_FILE  # formatted copies of the old Human-fixed code go too
+        if copies.exists():
+            c = read_csv(copies)
+            c[c["category"] != "Human-fixed"].to_csv(copies, index=False)
     done = done_ids(out)
     direct = read_csv(d / CATEGORY_FILES["Direct"])
     direct = direct[direct["code"].str.strip() != ""]

@@ -42,6 +42,10 @@
 
 **Human-fixed**: Category of LLM-written Samples made by applying Edit rules to a Direct Sample, the way a student might touch up code before handing it in. Still labelled LLM-written, and keeps the Generator of the Sample it was made from. _Avoid_: AI + human fix, humanized, perturbed.
 
+**Formatted copy**: A Sample run through black at a pinned version, made for every Sample in every Category, Human included. Not a Category, because it never changes who wrote the code. Used to check whether a Detector reacts only to spacing. _Avoid_: normalized, cleaned.
+
+**Formatter check**: The stage that makes Formatted copies, and the summary rows that compare formatted with unformatted Samples to show whether a Detector reacts only to spacing.
+
 **Edit rule**: One fixed, mechanical change used to make a Human-fixed Sample (e.g. rename variables to short names, remove comments).
 
 **Edit count**: How many Edit rules were applied to a Human-fixed Sample (e.g. 2 or 5). _Avoid_: light, heavy, edit level.

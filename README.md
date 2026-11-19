@@ -21,10 +21,11 @@ Four stages run in order. Each one reads files and writes files, so you can reru
 
 1. **Generate**: for every Generator in `config.toml`, fill the Prompt Template with each Problem, ask the model, and keep the first Python code block. Human solutions from `problems.csv` become human Samples. If `style_template` is set in `config.toml`, every Generator is asked a second time per Problem with the Style Prompt Template, giving Style-prompted Samples with `sample_id` `<generator>:<problem>:style`. Output: `human.csv`, `direct.csv` and, when `style_template` is set, `style_prompted.csv` in `results/<experiment>/`. Humanize edits Direct Samples only.
 2. **Humanize**: edit every Direct Sample with Edit rules at Edit count 2 and 5. Output: `human_fixed.csv`, with the rules, seed and script version of each row.
+   **Formatter check** (optional, `format_copies(cfg)`): makes a copy of every Sample in every Category, Human included, formatted with black at the pinned version. Output: `formatted.csv`, with `sample_id` `<sample_id>:fmt`. A Sample black cannot format gets no copy, a `status` of `failed: ...` and a line in the log. Samples with no code are skipped. Skipping the stage skips the check.
 3. **Score**: run each Detector over every Sample. Output: `results/<experiment>/scores/<detector>.csv`.
 4. **Metrics**: per Detector, Generator, Category, Edit count and human split, compute AUROC and the miss rate at a threshold, and compare with the paper's miss rate. Output: `results/<experiment>/summary.csv`.
 
-Generate and Humanize rebuild `samples.csv`, which combines the Category files and is the only file the Detectors read. Human-fixed rows that were dropped are left out.
+Generate, Humanize and the Formatter check rebuild `samples.csv`, which combines the Category files and the formatted copies and is the only file the Detectors read. It has a `formatted` column (`True` for copies). Rows that were dropped or could not be formatted are left out.
 
 Each stage skips work that is already on disk, so a crash or a rerun picks up where it stopped.
 
@@ -36,9 +37,9 @@ inputs/template.txt      Prompt Template, must contain {problem}
 inputs/datasets.csv      scraped forum posts, as delivered (never edit)
 inputs/problems.csv      problem_id, statement, human_code, post_type, site (made by modules/problems.py)
 detectors/<name>.py      one file per Detector
-modules/                 pipeline code (generate, humanize, score, metrics)
+modules/                 pipeline code (generate, humanize, formatcheck, score, metrics)
 colab.ipynb              the notebook everyone runs
-results/<experiment>/    human.csv, direct.csv, human_fixed.csv (one per Category), samples.csv (all combined), scores/, summary.csv
+results/<experiment>/    human.csv, direct.csv, human_fixed.csv (one per Category), formatted.csv (black copies), samples.csv (all combined), scores/, summary.csv
 GLOSSARY.md              shared vocabulary
 ```
 
@@ -70,8 +71,9 @@ Teammates normally edit only `config.toml`, `inputs/` and their own `detectors/<
 | Rescore one Detector after changing its code | `score(cfg, only="<name>", force=True)` then `metrics(cfg)` |
 | Score a newly added Detector | `score(cfg, only="<name>")` then `metrics(cfg)` |
 | Add a Generator to an existing experiment | add it to `config.toml`, then `generate(cfg)`, `humanize(cfg)`, `score(cfg)`, `metrics(cfg)`. Only the new Samples are generated, edited and scored |
-| Redo Human-fixed Samples after changing `modules/humanize.py` | `humanize(cfg, force=True)`, then `score(cfg)` and `metrics(cfg)`. Deletes only the Human-fixed Scores. Each row records the `script_version` that made it |
-| Regenerate everything after changing the template or problems | `generate(cfg, force=True)`. This re-bills the API and deletes every Category file and all Scores of that experiment |
+| Redo Human-fixed Samples after changing `modules/humanize.py` | `humanize(cfg, force=True)`, then `format_copies(cfg)` if you use the Formatter check, `score(cfg)` and `metrics(cfg)`. Deletes only the Human-fixed Scores and the formatted copies of Human-fixed Samples. Each row records the `script_version` that made it |
+| Redo the formatted copies, or move to another black version | change `BLACK_VERSION` in `modules/formatcheck.py` and the pin in `colab.ipynb`, then `format_copies(cfg, force=True)`, `score(cfg)` and `metrics(cfg)`. Deletes only the `:fmt` Scores |
+| Regenerate everything after changing the template or problems | `generate(cfg, force=True)`. This re-bills the API and deletes every Category file, `formatted.csv` and all Scores of that experiment |
 
 Stages skip work by `sample_id`. Editing `template.txt`, a Generator's `model_id` or `problems.csv` has no effect until you regenerate with `force=True`. A different `experiment` name is usually the better choice, because it keeps the old Results.
 
@@ -133,18 +135,19 @@ Watch the positive class when copying numbers from a paper. Here, LLM-written is
 
 ## Reading the summary
 
-One row per Detector, Generator, Category, Edit count and human split. Every row is measured at the same threshold, set from all the Human Samples.
+One row per Detector, Generator, Category, Edit count, `formatted` and human split. Within one value of `formatted`, every row is measured at the same threshold, set from all the Human Samples of that value.
 
 | column | meaning |
 | --- | --- |
 | `category`, `edit_count` | which LLM-written Samples this row covers. `edit_count` is the number of Edit rules applied, and is empty except for Human-fixed |
+| `formatted` | `False` for the original Samples, `True` for their black-formatted copies. For a Detector without a paper threshold, formatted rows take their threshold from the formatted Human Samples, so neat formatting is never itself a clue. A Detector with a paper threshold keeps it, and `achieved_fpr` shows whether formatting moved its human Scores. If a Detector's miss rate differs a lot between the two, it reacts to spacing |
 | `human_split` | which Human Samples the row compares against: `all`, `post_type=question`, `post_type=answer`, or `site=<site>`. If a Detector does much better on `question` than on `answer`, it may be spotting broken code, not LLM code |
 | `median_lines`, `human_median_lines` | median line count of this row's Samples and of the Human Samples in its split, so a length gap is visible (length is not filtered) |
 | `auroc` | how well Scores separate these Samples from human code (0.5 = chance) |
 | `threshold`, `threshold_source` | the cut-off used, from the paper or from `fpr_fallback` |
 | `achieved_fpr` | share of human Samples flagged at that threshold |
 | `miss_rate` | share of these Samples scored as human |
-| `paper_miss_rate`, `outdated` | the paper's figure, and whether ours is higher. Direct rows with `human_split` = `all` only, because papers measured plain LLM output |
+| `paper_miss_rate`, `outdated` | the paper's figure, and whether ours is higher. Direct rows with `human_split` = `all` and `formatted` = `False` only, because papers measured plain LLM output |
 
 ## Open decisions
 
