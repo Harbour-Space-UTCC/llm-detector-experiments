@@ -8,7 +8,7 @@
 
 **Detector**: A method that maps a code Sample to a Score of how likely it is to be LLM-written (zero-shot, trained classifier, stylometric).
 
-**Problem**: One coding task (statement and ID) put into the Prompt Template to make a Generator write code. _Avoid_: question (that is the research Question).
+**Problem**: One coding task (statement and ID) put into the Prompt Template to make a Generator write code. A forum post (its title and text, without its code) is one Problem, and the code from that post is its Human Sample. _Avoid_: question (that is the research Question).
 
 **Prompt Template**: Text with a placeholder that a Problem fills in; the full prompt sent to a Generator.
 
@@ -29,6 +29,8 @@
 **Category**: How a Sample came to be written. Every Sample has exactly one: Human, Direct, Style-prompted or Human-fixed. _Avoid_: condition, type, source.
 
 **Human**: Category of Samples written by a person. The only Category labelled human.
+
+**Post type**: Where in a forum post a Human Sample's code came from: `question` (the asker's own attempt, often broken) or `answer` (a reply that solves the Problem). _Avoid_: code source, origin.
 
 **Direct**: Category of LLM-written Samples from the plain Prompt Template, which asks only for a solution to the Problem. _Avoid_: AI only, pure AI.
 
