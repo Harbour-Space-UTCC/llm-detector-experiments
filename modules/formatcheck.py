@@ -22,6 +22,7 @@ def format_copies(cfg, force=False):
             s = read_csv(f)
             s[~s["sample_id"].str.endswith(":fmt")].to_csv(f, index=False)
     done = done_ids(out)
+    combine(d)  # samples.csv may predate the formatted column
     samples = read_csv(d / "samples.csv")
     originals = samples[(samples["formatted"] == "False") & (samples["code"].str.strip() != "")]
     rows, failed = [], 0
@@ -39,5 +40,7 @@ def format_copies(cfg, force=False):
                      "formatted": "True", "code": code, "status": status, "black_version": black.__version__})
     if rows:
         append_csv(rows, out)
-    print(f"formatted: {len(rows) - failed} new copies, {failed} could not be formatted (see status column)")
     combine(d)
+    all_failed = read_csv(out)["status"].str.startswith("failed").sum() if out.exists() else 0
+    print(f"formatted: {len(rows) - failed} new copies, {failed} new Samples and {all_failed} in total "
+          f"could not be formatted (see status column)")

@@ -53,12 +53,16 @@ def metrics(cfg):
             continue
         s = read_csv(path).merge(samples, on="sample_id")
         s["score"] = s["score"].astype(float)
-        # Formatted copies are measured on their own: their threshold comes from the formatted Human Samples.
+        # Formatted copies are measured on their own. A Detector with no paper threshold takes its threshold from
+        # the formatted Human Samples; one with a paper threshold keeps it, and achieved_fpr shows any shift.
         for formatted, sf in s.groupby("formatted"):
             human_rows = sf[sf["category"] == "Human"]
-            human = human_rows["score"].to_numpy()  # one threshold for every Category and human split
+            human = human_rows["score"].to_numpy()  # one threshold for every Category and human split of this `formatted` value
             if len(human) == 0:
-                raise ValueError(f"{name}: no human Samples scored (formatted={formatted}); FPR and AUROC need them")
+                if formatted == "True":  # e.g. black could not format a single Human Sample
+                    print(f"{name}: no formatted Human Samples scored, formatted rows skipped")
+                    continue
+                raise ValueError(f"{name}: no human Samples scored; FPR and AUROC need them")
             if "threshold" in dcfg:
                 threshold, source = dcfg["threshold"], "paper"
             else:

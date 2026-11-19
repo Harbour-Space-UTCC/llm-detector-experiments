@@ -50,7 +50,7 @@ def generate(cfg, force=False):
         # Human-fixed Samples are edits of the old Direct code, and formatted copies of the old Samples, so they go too.
         for f in [*CATEGORY_FILES.values(), FORMATTED_FILE, "samples.csv", *(d / "scores").glob("*.csv")]:
             (d / f).unlink(missing_ok=True)
-        print("force: cleared every Category file, samples.csv and all scores")
+        print("force: cleared every Category file, formatted.csv, samples.csv and all scores")
     passes = [Pass("Direct", read_template(cfg["template"]), "")]
     if cfg.get("style_template"):
         passes.append(Pass("Style-prompted", read_template(cfg["style_template"]), ":style"))

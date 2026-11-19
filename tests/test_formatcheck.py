@@ -52,7 +52,7 @@ def test_unformattable_sample_is_counted_and_logged_not_crashed_on(exp, capsys):
     fc.format_copies(cfg)
     s = read_csv(d / "samples.csv")
     assert "g:p2:fmt" not in set(s["sample_id"]) and "g:p2" in set(s["sample_id"])
-    assert "1 could not be formatted" in capsys.readouterr().out
+    assert "1 new Samples and 1 in total could not be formatted" in capsys.readouterr().out
     assert read_csv(d / "formatted.csv").set_index("sample_id").loc["g:p2:fmt", "status"].startswith("failed")
 
 
@@ -123,3 +123,21 @@ def test_humanize_force_drops_formatted_copies_of_human_fixed_only(exp):
     assert {"human:p1:0:fmt", "g:p1:fmt", "g:p1:style:fmt"} <= set(s["sample_id"])
     left = set(read_csv(d / "scores" / "random_baseline.csv")["sample_id"])
     assert not any(":hf" in i for i in left) and "g:p1:fmt" in left
+
+
+def test_paper_threshold_is_kept_on_formatted_rows(exp):
+    cfg, d = exp
+    cfg["detectors"]["random_baseline"] = {"threshold": 0.7}
+    fc.format_copies(cfg)
+    s = read_csv(d / "samples.csv")
+    pd.DataFrame({"sample_id": s["sample_id"], "score": 0.5}).to_csv(d / "scores" / "random_baseline.csv", index=False)
+    out = metrics(cfg)
+    assert set(out["threshold"]) == {0.7} and set(out["threshold_source"]) == {"paper"}
+    assert set(out["formatted"]) == {"False", "True"}
+
+
+def test_format_copies_upgrades_a_samples_file_without_the_formatted_column(exp):
+    cfg, d = exp
+    read_csv(d / "samples.csv").drop(columns="formatted").to_csv(d / "samples.csv", index=False)
+    fc.format_copies(cfg)
+    assert set(read_csv(d / "samples.csv")["formatted"]) == {"False", "True"}
