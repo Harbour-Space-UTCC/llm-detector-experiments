@@ -22,8 +22,8 @@ def human_samples(problems):
     return [
         {"sample_id": f"human:{pid}:{n}", "problem_id": pid, "label": "human", "category": "Human",
          "generator": "human", "model_id": "", "code": code, "raw_response": "",
-         "post_type": pt, "site": site}
-        for pid, n, code, pt, site in zip(human["problem_id"], nth, human["human_code"],
+         "post_type": post_type, "site": site}
+        for pid, n, code, post_type, site in zip(human["problem_id"], nth, human["human_code"],
                                           human["post_type"], human["site"])
     ]
 

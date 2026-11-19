@@ -5,8 +5,6 @@ import pandas as pd
 
 from .common import ROOT, read_csv
 
-COLUMNS = ["problem_id", "statement", "human_code", "post_type", "site"]
-
 
 def convert(src=ROOT / "inputs/datasets.csv", dst=ROOT / "inputs/problems.csv"):
     """One Problem per post whose code parses: statement = title, blank line, post text as delivered."""
