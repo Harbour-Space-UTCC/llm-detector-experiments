@@ -131,16 +131,18 @@ Watch the positive class when copying numbers from a paper. Here, LLM-written is
 
 ## Reading the summary
 
-One row per Detector, Generator, Category and Edit count. Every Category is measured at the same threshold, set from the Human Samples.
+One row per Detector, Generator, Category, Edit count and human split. Every row is measured at the same threshold, set from all the Human Samples.
 
 | column | meaning |
 | --- | --- |
 | `category`, `edit_count` | which LLM-written Samples this row covers. `edit_count` is the number of Edit rules applied, and is empty except for Human-fixed |
+| `human_split` | which Human Samples the row compares against: `all`, `post_type=question`, `post_type=answer`, or `site=<site>`. If a Detector does much better on `question` than on `answer`, it may be spotting broken code, not LLM code |
+| `median_lines`, `human_median_lines` | median line count of this row's Samples and of the Human Samples in its split, so a length gap is visible (length is not filtered) |
 | `auroc` | how well Scores separate these Samples from human code (0.5 = chance) |
 | `threshold`, `threshold_source` | the cut-off used, from the paper or from `fpr_fallback` |
 | `achieved_fpr` | share of human Samples flagged at that threshold |
 | `miss_rate` | share of these Samples scored as human |
-| `paper_miss_rate`, `outdated` | the paper's figure, and whether ours is higher. Direct rows only, because papers measured plain LLM output |
+| `paper_miss_rate`, `outdated` | the paper's figure, and whether ours is higher. Direct rows with `human_split` = `all` only, because papers measured plain LLM output |
 
 ## Open decisions
 

@@ -65,3 +65,22 @@ def test_humanize_force_drops_only_human_fixed_scores(exp):
     humanize(cfg, force=True)
     left = set(read_csv(d / "scores" / "fake.csv")["sample_id"])
     assert left == {i for i in ids if ":hf" not in i}
+
+
+def test_metrics_split_by_post_type_and_site_with_line_counts(tmp_path, monkeypatch):
+    monkeypatch.setattr(common, "ROOT", tmp_path)
+    cfg = {"experiment": "t", "fpr_fallback": 0.05, "detectors": {"fake": {"threshold": 0.5}}}
+    d = common.results_dir(cfg)
+    rows = [("h1", "Human", "question", "github", "a\nb\nc", 0.9), ("h2", "Human", "question", "github", "a\nb\nc", 0.8),
+            ("h3", "Human", "answer", "codereview", "a", 0.1), ("h4", "Human", "answer", "codereview", "a", 0.2),
+            ("l1", "Direct", "", "", "a\nb", 0.7)]
+    pd.DataFrame([{"sample_id": i, "category": c, "generator": "g" if c != "Human" else "human", "edit_count": "",
+                   "post_type": pt, "site": site, "code": code} for i, c, pt, site, code, _ in rows]
+                 ).to_csv(d / "samples.csv", index=False)
+    pd.DataFrame({"sample_id": [r[0] for r in rows], "score": [r[5] for r in rows]}).to_csv(d / "scores" / "fake.csv", index=False)
+    out = metrics(cfg).set_index("human_split")
+    assert set(out.index) == {"all", "post_type=question", "post_type=answer", "site=github", "site=codereview"}
+    assert out.loc["post_type=question", "achieved_fpr"] == 1 and out.loc["post_type=answer", "achieved_fpr"] == 0
+    assert out.loc["post_type=question", "auroc"] == 0 and out.loc["post_type=answer", "auroc"] == 1
+    assert out.loc["all", "median_lines"] == 2 and out.loc["all", "human_median_lines"] == 2
+    assert out.loc["post_type=answer", "human_median_lines"] == 1
