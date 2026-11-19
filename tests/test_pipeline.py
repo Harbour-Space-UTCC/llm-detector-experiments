@@ -69,11 +69,11 @@ def test_humanize_force_drops_only_human_fixed_scores(exp):
 
 def test_metrics_split_by_post_type_and_site_with_line_counts(tmp_path, monkeypatch):
     monkeypatch.setattr(common, "ROOT", tmp_path)
-    cfg = {"experiment": "t", "fpr_fallback": 0.05, "detectors": {"fake": {"threshold": 0.5}}}
+    cfg = {"experiment": "t", "fpr_fallback": 0.05, "detectors": {"fake": {"threshold": 0.5, "paper_miss_rate": 0.1}}}
     d = common.results_dir(cfg)
     rows = [("h1", "Human", "question", "github", "a\nb\nc", 0.9), ("h2", "Human", "question", "github", "a\nb\nc", 0.8),
             ("h3", "Human", "answer", "codereview", "a", 0.1), ("h4", "Human", "answer", "codereview", "a", 0.2),
-            ("l1", "Direct", "", "", "a\nb", 0.7)]
+            ("l1", "Direct", "", "", "a\nb", 0.4)]
     pd.DataFrame([{"sample_id": i, "category": c, "generator": "g" if c != "Human" else "human", "edit_count": "",
                    "post_type": pt, "site": site, "code": code} for i, c, pt, site, code, _ in rows]
                  ).to_csv(d / "samples.csv", index=False)
@@ -84,3 +84,5 @@ def test_metrics_split_by_post_type_and_site_with_line_counts(tmp_path, monkeypa
     assert out.loc["post_type=question", "auroc"] == 0 and out.loc["post_type=answer", "auroc"] == 1
     assert out.loc["all", "median_lines"] == 2 and out.loc["all", "human_median_lines"] == 2
     assert out.loc["post_type=answer", "human_median_lines"] == 1
+    assert out["threshold"].nunique() == 1  # every split uses the threshold from all Human Samples
+    assert out.loc["all", "outdated"] and out.drop(index="all")["outdated"].isna().all()

@@ -22,7 +22,7 @@ Four stages run in order. Each one reads files and writes files, so you can reru
 1. **Generate**: for every Generator in `config.toml`, fill the Prompt Template with each Problem, ask the model, and keep the first Python code block. Human solutions from `problems.csv` become human Samples. Output: `human.csv` and `direct.csv` in `results/<experiment>/`.
 2. **Humanize**: edit every Direct Sample with Edit rules at Edit count 2 and 5. Output: `human_fixed.csv`, with the rules, seed and script version of each row.
 3. **Score**: run each Detector over every Sample. Output: `results/<experiment>/scores/<detector>.csv`.
-4. **Metrics**: per Detector, Generator, Category and Edit count, compute AUROC and the miss rate at a threshold, and compare with the paper's miss rate. Output: `results/<experiment>/summary.csv`.
+4. **Metrics**: per Detector, Generator, Category, Edit count and human split, compute AUROC and the miss rate at a threshold, and compare with the paper's miss rate. Output: `results/<experiment>/summary.csv`.
 
 Generate and Humanize rebuild `samples.csv`, which combines the Category files and is the only file the Detectors read. Human-fixed rows that were dropped are left out.
 
@@ -101,7 +101,7 @@ Stages skip work by `sample_id`. Editing `template.txt`, a Generator's `model_id
 | `post_type` | `question` or `answer`, copied to the human Sample |
 | `site` | copied to the human Sample |
 
-Human Samples carry `post_type` and `site` in `human.csv` and `samples.csv`, so Results can later be split by them.
+Human Samples carry `post_type` and `site` in `human.csv` and `samples.csv`, so the summary splits the Human side by them.
 
 **`inputs/template.txt`**: the full prompt sent to every Generator. `{problem}` is replaced with the statement. Ask for a single ```` ```python ```` block, because the code is extracted from the first one.
 
