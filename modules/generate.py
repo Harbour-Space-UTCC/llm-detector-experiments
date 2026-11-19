@@ -5,7 +5,7 @@ from typing import NamedTuple
 
 from openai import OpenAI
 
-from .common import CATEGORY_FILES, ROOT, append_csv, combine, done_ids, read_csv, results_dir
+from .common import CATEGORY_FILES, FORMATTED_FILE, ROOT, append_csv, combine, done_ids, read_csv, results_dir
 
 _FENCE_PY = re.compile(r"```(?:python3?|py)[ \t]*\n(.*?)```", re.DOTALL)
 _FENCE_BARE = re.compile(r"```[ \t]*\n(.*?)```", re.DOTALL)
@@ -47,8 +47,8 @@ def generate(cfg, force=False):
     human_out = d / CATEGORY_FILES["Human"]
     if force:
         # Regenerated Samples reuse sample_ids, so old Scores would silently attach to new code.
-        # Human-fixed Samples are edits of the old Direct code, so they go too.
-        for f in [*CATEGORY_FILES.values(), "samples.csv", *(d / "scores").glob("*.csv")]:
+        # Human-fixed Samples are edits of the old Direct code, and formatted copies of the old Samples, so they go too.
+        for f in [*CATEGORY_FILES.values(), FORMATTED_FILE, "samples.csv", *(d / "scores").glob("*.csv")]:
             (d / f).unlink(missing_ok=True)
         print("force: cleared every Category file, samples.csv and all scores")
     passes = [Pass("Direct", read_template(cfg["template"]), "")]

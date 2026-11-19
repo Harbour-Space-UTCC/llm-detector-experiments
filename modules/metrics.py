@@ -1,4 +1,4 @@
-"""Stage 3: Scores -> results/<experiment>/summary.csv (one row per Detector x Generator x Category x Edit count x human split)."""
+"""Stage 3: Scores -> results/<experiment>/summary.csv (one row per Detector x Generator x Category x Edit count x formatted x human split)."""
 import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
@@ -44,7 +44,7 @@ def human_splits(human):
 def metrics(cfg):
     d = results_dir(cfg)
     samples = read_csv(d / "samples.csv")[
-        ["sample_id", "category", "generator", "edit_count", "post_type", "site", "code"]]
+        ["sample_id", "category", "generator", "edit_count", "post_type", "site", "formatted", "code"]]
     rows = []
     for name, dcfg in cfg.get("detectors", {}).items():
         path = d / "scores" / f"{name}.csv"
@@ -53,27 +53,30 @@ def metrics(cfg):
             continue
         s = read_csv(path).merge(samples, on="sample_id")
         s["score"] = s["score"].astype(float)
-        human_rows = s[s["category"] == "Human"]
-        human = human_rows["score"].to_numpy()  # one threshold for every Category and human split
-        if len(human) == 0:
-            raise ValueError(f"{name}: no human Samples scored; FPR and AUROC need them")
-        if "threshold" in dcfg:
-            threshold, source = dcfg["threshold"], "paper"
-        else:
-            fpr = dcfg.get("fpr", cfg["fpr_fallback"])
-            threshold, source = fallback_threshold(human, fpr), f"fpr={fpr}"
-        llm = s[s["category"] != "Human"]
-        splits = [(name_, h, median_lines(h["code"])) for name_, h in human_splits(human_rows)]
-        for (gen, cat, ec), g in llm.groupby(["generator", "category", "edit_count"]):
-            for split, h, h_lines in splits:
-                r = {"detector": name, "generator": gen, "category": cat, "edit_count": ec,
-                     "human_split": split, "threshold_source": source,
-                     **summarize(h["score"], g["score"], threshold),
-                     "median_lines": median_lines(g["code"]), "human_median_lines": h_lines}
-                if "paper_miss_rate" in dcfg and cat == "Direct" and split == ALL:  # papers measured plain LLM output
-                    r["paper_miss_rate"] = dcfg["paper_miss_rate"]
-                    r["outdated"] = r["miss_rate"] > dcfg["paper_miss_rate"]
-                rows.append(r)
+        # Formatted copies are measured on their own: their threshold comes from the formatted Human Samples.
+        for formatted, sf in s.groupby("formatted"):
+            human_rows = sf[sf["category"] == "Human"]
+            human = human_rows["score"].to_numpy()  # one threshold for every Category and human split
+            if len(human) == 0:
+                raise ValueError(f"{name}: no human Samples scored (formatted={formatted}); FPR and AUROC need them")
+            if "threshold" in dcfg:
+                threshold, source = dcfg["threshold"], "paper"
+            else:
+                fpr = dcfg.get("fpr", cfg["fpr_fallback"])
+                threshold, source = fallback_threshold(human, fpr), f"fpr={fpr}"
+            llm = sf[sf["category"] != "Human"]
+            splits = [(name_, h, median_lines(h["code"])) for name_, h in human_splits(human_rows)]
+            for (gen, cat, ec), g in llm.groupby(["generator", "category", "edit_count"]):
+                for split, h, h_lines in splits:
+                    r = {"detector": name, "generator": gen, "category": cat, "edit_count": ec,
+                         "formatted": formatted, "human_split": split, "threshold_source": source,
+                         **summarize(h["score"], g["score"], threshold),
+                         "median_lines": median_lines(g["code"]), "human_median_lines": h_lines}
+                    # papers measured plain, unformatted LLM output
+                    if "paper_miss_rate" in dcfg and cat == "Direct" and split == ALL and formatted == "False":
+                        r["paper_miss_rate"] = dcfg["paper_miss_rate"]
+                        r["outdated"] = r["miss_rate"] > dcfg["paper_miss_rate"]
+                    rows.append(r)
     summary = pd.DataFrame(rows)
     summary.to_csv(d / "summary.csv", index=False)
     return summary

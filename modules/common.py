@@ -34,18 +34,21 @@ def done_ids(path):
 # One file per Category in results/<experiment>/; samples.csv combines them for the Detectors.
 CATEGORY_FILES = {"Human": "human.csv", "Direct": "direct.csv",
                   "Style-prompted": "style_prompted.csv", "Human-fixed": "human_fixed.csv"}
+FORMATTED_FILE = "formatted.csv"  # black-formatted copies of every Sample (not a Category)
 SAMPLE_COLUMNS = ["sample_id", "problem_id", "label", "category", "generator", "model_id",
-                  "edit_count", "source_id", "post_type", "site", "code"]
+                  "edit_count", "source_id", "post_type", "site", "formatted", "code"]
 
 
 def combine(d):
-    """Rebuild samples.csv from the Category files. Human-fixed rows that were dropped are left out."""
+    """Rebuild samples.csv from the Category files and the formatted copies. Rows whose status is not "kept" are left out."""
     parts = []
-    for f in CATEGORY_FILES.values():
+    for f in [*CATEGORY_FILES.values(), FORMATTED_FILE]:
         if (d / f).exists():
             df = read_csv(d / f)
             if "status" in df:
                 df = df[df["status"] == "kept"]
-            parts.append(df.reindex(columns=SAMPLE_COLUMNS, fill_value=""))
+            df = df.reindex(columns=SAMPLE_COLUMNS, fill_value="")
+            df["formatted"] = df["formatted"].replace("", "False")
+            parts.append(df)
     if parts:
         pd.concat(parts).to_csv(d / "samples.csv", index=False)

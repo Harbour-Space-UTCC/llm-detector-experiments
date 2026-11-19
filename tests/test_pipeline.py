@@ -75,7 +75,7 @@ def test_metrics_split_by_post_type_and_site_with_line_counts(tmp_path, monkeypa
             ("h3", "Human", "answer", "codereview", "a", 0.1), ("h4", "Human", "answer", "codereview", "a", 0.2),
             ("l1", "Direct", "", "", "a\nb", 0.4)]
     pd.DataFrame([{"sample_id": i, "category": c, "generator": "g" if c != "Human" else "human", "edit_count": "",
-                   "post_type": pt, "site": site, "code": code} for i, c, pt, site, code, _ in rows]
+                   "post_type": pt, "site": site, "formatted": "False", "code": code} for i, c, pt, site, code, _ in rows]
                  ).to_csv(d / "samples.csv", index=False)
     pd.DataFrame({"sample_id": [r[0] for r in rows], "score": [r[5] for r in rows]}).to_csv(d / "scores" / "fake.csv", index=False)
     out = metrics(cfg).set_index("human_split")
