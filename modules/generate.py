@@ -21,8 +21,10 @@ def human_samples(problems):
     nth = human.groupby("problem_id").cumcount().astype(str)
     return [
         {"sample_id": f"human:{pid}:{n}", "problem_id": pid, "label": "human", "category": "Human",
-         "generator": "human", "model_id": "", "code": code, "raw_response": ""}
-        for pid, n, code in zip(human["problem_id"], nth, human["human_code"])
+         "generator": "human", "model_id": "", "code": code, "raw_response": "",
+         "post_type": pt, "site": site}
+        for pid, n, code, pt, site in zip(human["problem_id"], nth, human["human_code"],
+                                          human["post_type"], human["site"])
     ]
 
 

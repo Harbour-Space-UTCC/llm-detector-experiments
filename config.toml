@@ -1,7 +1,7 @@
 # What to run. Teammates edit this file, inputs/ and their own detectors/<name>.py.
 experiment = "toy"                  # results go to results/<experiment>/
 template = "inputs/template.txt"    # Prompt Template, must contain {problem}
-problems = "inputs/problems.csv"    # problem_id, statement, human_code (one row per human solution)
+problems = "inputs/problems.csv"    # problem_id, statement, human_code, post_type, site (python -m modules.problems)
 fpr_fallback = 0.05                 # threshold flags this share of human Samples when a detector has no paper threshold
 
 # One block per Generator. Friend replaces this list.

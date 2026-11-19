@@ -35,7 +35,7 @@ def done_ids(path):
 CATEGORY_FILES = {"Human": "human.csv", "Direct": "direct.csv",
                   "Style-prompted": "style_prompted.csv", "Human-fixed": "human_fixed.csv"}
 SAMPLE_COLUMNS = ["sample_id", "problem_id", "label", "category", "generator", "model_id",
-                  "edit_count", "source_id", "code"]
+                  "edit_count", "source_id", "post_type", "site", "code"]
 
 
 def combine(d):
