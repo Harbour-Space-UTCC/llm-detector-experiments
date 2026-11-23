@@ -1,13 +1,12 @@
-"""inputs/templates/<name>.txt + inputs/data/problems.csv -> inputs/templates/<name>.jsonl, one Prompt per Problem.
+"""inputs/templates/<name>.txt + the Problems file (`problems` in config.toml) -> inputs/templates/<name>.jsonl, one Prompt per Problem.
 Rerun after editing a Prompt Template or the Problems, and commit the .jsonl files:
     python -m modules.prompts
 """
 import json
 
-from .common import ROOT, read_csv
+from .common import ROOT, load_config, read_csv
 
 TEMPLATES = "inputs/templates"
-PROBLEMS = "inputs/data/problems.csv"
 
 
 def fill(template, problems):
@@ -18,8 +17,8 @@ def fill(template, problems):
                    for pid, statement in zip(unique["problem_id"], unique["statement"]))
 
 
-def write_prompts():
-    problems = read_csv(ROOT / PROBLEMS)
+def write_prompts(cfg):
+    problems = read_csv(ROOT / cfg["problems"])  # the file generate() reads Human Samples from
     templates = {p: p.read_text(encoding="utf-8") for p in sorted((ROOT / TEMPLATES).glob("*.txt"))}
     for path, text in templates.items():  # check all before writing any, so a bad template changes nothing
         if "{problem}" not in text:
@@ -31,5 +30,5 @@ def write_prompts():
 
 
 if __name__ == "__main__":
-    write_prompts()
+    write_prompts(load_config())
     print(f"Prompt files written to {TEMPLATES}/")
