@@ -40,7 +40,7 @@ def test_template_without_placeholder_stops_the_stage_naming_the_file(root):
 
 
 def test_committed_prompt_files_match_templates_and_problems():
-    """Real repo files: a template or Problems edit without rerunning the stage fails here."""
+    """Real repo files: a template or Problems edit without rerunning the stage, or a Prompt file left after its template was removed, fails here."""
     from modules.common import ROOT, read_csv
     problems = read_csv(ROOT / prompts.PROBLEMS)
     templates = sorted((ROOT / prompts.TEMPLATES).glob("*.txt"))
@@ -50,3 +50,6 @@ def test_committed_prompt_files_match_templates_and_problems():
         fix = f"{out.relative_to(ROOT).as_posix()} is stale: run `python -m modules.prompts` and commit it"
         assert out.is_file(), fix
         assert out.read_bytes() == prompts.fill(t.read_text(encoding="utf-8"), problems).encode("utf-8"), fix
+    for out in (ROOT / prompts.TEMPLATES).glob("*.jsonl"):
+        assert out.with_suffix(".txt").is_file(), (
+            f"{out.relative_to(ROOT).as_posix()} has no {out.stem}.txt template: delete it or restore the template")
