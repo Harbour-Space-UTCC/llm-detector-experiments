@@ -22,3 +22,11 @@ def test_convert_keeps_parsing_rows_only(tmp_path):
     assert (pd.read_csv(dst, dtype=str, keep_default_na=False) == p.astype(str)).all().all()
     h = human_samples(p)
     assert [(s["post_type"], s["site"]) for s in h] == [("answer", "stackoverflow"), ("question", "codereview")]
+
+
+def test_config_names_inputs_in_data_and_templates_folders():
+    from modules.common import ROOT, load_config
+    cfg = load_config(ROOT / "config.toml")
+    assert cfg["template"] == "inputs/templates/direct.txt" and cfg["problems"] == "inputs/data/problems.csv"
+    for p in [cfg["template"], cfg["problems"], "inputs/templates/style.txt", "inputs/data/datasets.csv"]:
+        assert (ROOT / p).is_file(), p

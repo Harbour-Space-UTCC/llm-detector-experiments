@@ -28,12 +28,13 @@ def cfg(tmp_path, monkeypatch):
     monkeypatch.setattr(gen, "OpenAI", FakeClient)
     monkeypatch.setenv("OPENROUTER_API_KEY", "x")
     FakeClient.prompts = []
-    (tmp_path / "inputs").mkdir()
-    (tmp_path / "inputs/problems.csv").write_text(
+    (tmp_path / "inputs/data").mkdir(parents=True)
+    (tmp_path / "inputs/templates").mkdir()
+    (tmp_path / "inputs/data/problems.csv").write_text(
         "problem_id,statement,human_code,post_type,site\np1,Sum it,print(2),answer,github\np2,Add it,print(3),question,github\n")
-    (tmp_path / "inputs/template.txt").write_text("PLAIN {problem}")
-    (tmp_path / "inputs/style_template.txt").write_text("STYLE {problem}")
-    return {"experiment": "t", "template": "inputs/template.txt", "problems": "inputs/problems.csv",
+    (tmp_path / "inputs/templates/direct.txt").write_text("PLAIN {problem}")
+    (tmp_path / "inputs/templates/style.txt").write_text("STYLE {problem}")
+    return {"experiment": "t", "template": "inputs/templates/direct.txt", "problems": "inputs/data/problems.csv",
             "fpr_fallback": 0.05, "generators": [{"name": "g", "model_id": "m"}],
             "detectors": {"fake": {"threshold": 0.5}}}
 
@@ -46,7 +47,7 @@ def test_without_style_template_nothing_changes(cfg):
 
 
 def test_style_samples_use_style_template_and_id(cfg):
-    cfg["style_template"] = "inputs/style_template.txt"
+    cfg["style_template"] = "inputs/templates/style.txt"
     gen.generate(cfg)
     d = common.results_dir(cfg)
     style = read_csv(d / "style_prompted.csv")
@@ -57,7 +58,7 @@ def test_style_samples_use_style_template_and_id(cfg):
 
 
 def test_rerun_skips_and_force_clears(cfg):
-    cfg["style_template"] = "inputs/style_template.txt"
+    cfg["style_template"] = "inputs/templates/style.txt"
     gen.generate(cfg)
     calls_after_first_run = len(FakeClient.prompts)
     gen.generate(cfg)
@@ -72,28 +73,28 @@ def test_rerun_skips_and_force_clears(cfg):
 def test_adding_style_template_later_generates_only_style(cfg):
     gen.generate(cfg)
     FakeClient.prompts = []
-    cfg["style_template"] = "inputs/style_template.txt"
+    cfg["style_template"] = "inputs/templates/style.txt"
     gen.generate(cfg)
     assert sorted(FakeClient.prompts) == ["STYLE Add it", "STYLE Sum it"]
 
 
 def test_missing_style_template_fails_before_any_call(cfg):
-    cfg["style_template"] = "inputs/nope.txt"
+    cfg["style_template"] = "inputs/templates/nope.txt"
     with pytest.raises(FileNotFoundError):
         gen.generate(cfg)
     assert FakeClient.prompts == []
 
 
 def test_template_without_placeholder_fails_before_any_call(cfg):
-    (common.ROOT / "inputs/style_template.txt").write_text("STYLE with no placeholder")
-    cfg["style_template"] = "inputs/style_template.txt"
+    (common.ROOT / "inputs/templates/style.txt").write_text("STYLE with no placeholder")
+    cfg["style_template"] = "inputs/templates/style.txt"
     with pytest.raises(ValueError, match="placeholder"):
         gen.generate(cfg)
     assert FakeClient.prompts == []
 
 
 def test_human_fixed_only_from_direct(cfg):
-    cfg["style_template"] = "inputs/style_template.txt"
+    cfg["style_template"] = "inputs/templates/style.txt"
     gen.generate(cfg)
     humanize(cfg)
     s = read_csv(common.results_dir(cfg) / "samples.csv")
@@ -102,7 +103,7 @@ def test_human_fixed_only_from_direct(cfg):
 
 
 def test_summary_has_style_rows_for_each_generator(cfg):
-    cfg["style_template"] = "inputs/style_template.txt"
+    cfg["style_template"] = "inputs/templates/style.txt"
     cfg["generators"].append({"name": "g2", "model_id": "m2"})
     gen.generate(cfg)
     d = common.results_dir(cfg)

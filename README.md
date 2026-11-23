@@ -11,8 +11,8 @@ Every Sample belongs to one of four Categories. The names in the first column ar
 | Category | Also called | What it is |
 | --- | --- | --- |
 | Human | Human only | Code written by a person |
-| Direct | AI only (prompt) | LLM code from `inputs/direct_template.txt`, which only asks for a solution |
-| Style-prompted | AI + refine prompt | LLM code from `inputs/style_template.txt`, which also asks for code that looks human-written |
+| Direct | AI only (prompt) | LLM code from `inputs/templates/direct.txt`, which only asks for a solution |
+| Style-prompted | AI + refine prompt | LLM code from `inputs/templates/style.txt`, which also asks for code that looks human-written |
 | Human-fixed | AI + Human fix | A Direct Sample after a script applies a set number of Edit rules (the Edit count) |
 
 ## How it works
@@ -33,9 +33,9 @@ Each stage skips work that is already on disk, so a crash or a rerun picks up wh
 
 ```
 config.toml              what to run: experiment name, Generators, Detectors, paper numbers
-inputs/direct_template.txt  Prompt Template for Direct Samples, must contain {problem}
-inputs/datasets.csv      scraped forum posts, as delivered (never edit)
-inputs/problems.csv      problem_id, statement, human_code, post_type, site (made by modules/problems.py)
+inputs/data/datasets.csv scraped forum posts, as delivered (never edit)
+inputs/data/problems.csv problem_id, statement, human_code, post_type, site (made by modules/problems.py)
+inputs/templates/        Prompt Templates, must contain {problem}: direct.txt (Direct), style.txt (Style-prompted)
 detectors/<name>.py      one file per Detector
 modules/                 pipeline code (generate, humanize, formatcheck, score, metrics)
 colab.ipynb              the notebook everyone runs
@@ -79,7 +79,7 @@ Stages skip work by `sample_id`. Editing a Prompt Template, a Generator's `model
 
 ## Inputs
 
-**`inputs/datasets.csv`**: 1,071 forum posts scraped by the team (Stack Overflow, Code Review, GitHub), kept byte-for-byte as delivered. It is the provenance reference: join it to anything by `problem_id` = `sample_id`.
+**`inputs/data/datasets.csv`**: 1,071 forum posts scraped by the team (Stack Overflow, Code Review, GitHub), kept byte-for-byte as delivered. It is the provenance reference: join it to anything by `problem_id` = `sample_id`.
 
 | column | meaning |
 | --- | --- |
@@ -93,7 +93,7 @@ Stages skip work by `sample_id`. Editing a Prompt Template, a Generator's `model
 | `post_created_utc`, `post_last_edited_utc`, `post_score`, `tags` | post metadata |
 | `author`, `author_link`, `link`, `question_link`, `license` | attribution |
 
-**`inputs/problems.csv`**: one Problem per kept post, with its one human solution. Generated, so do not edit it by hand. Run `python -m modules.problems` to rebuild it (this overwrites the file) whenever a rule changes. It keeps only rows with `code_parses=True` (687 of 1,071), because unparseable human code would give the label away and AST-based Detectors cannot read it. Both Post types are kept.
+**`inputs/data/problems.csv`**: one Problem per kept post, with its one human solution. Generated, so do not edit it by hand. Run `python -m modules.problems` to rebuild it (this overwrites the file) whenever a rule changes. It keeps only rows with `code_parses=True` (687 of 1,071), because unparseable human code would give the label away and AST-based Detectors cannot read it. Both Post types are kept.
 
 | column | meaning |
 | --- | --- |
@@ -105,9 +105,9 @@ Stages skip work by `sample_id`. Editing a Prompt Template, a Generator's `model
 
 Human Samples carry `post_type` and `site` in `human.csv` and `samples.csv`, so the summary splits the Human side by them.
 
-**`inputs/direct_template.txt`**: the plain Prompt Template, the full prompt sent to every Generator for Direct Samples (set by `template` in `config.toml`). `{problem}` is replaced with the statement. Ask for a single ```` ```python ```` block, because the code is extracted from the first one.
+**`inputs/templates/direct.txt`**: the plain Prompt Template, the full prompt sent to every Generator for Direct Samples (set by `template` in `config.toml`). `{problem}` is replaced with the statement. Ask for a single ```` ```python ```` block, because the code is extracted from the first one.
 
-**`inputs/style_template.txt`**: the Style Prompt Template, used only when `style_template = "inputs/style_template.txt"` is set in `config.toml`. Same rules as `direct_template.txt` (`{problem}`, a single ```` ```python ```` block), and it also asks for code that looks human-written. Freeze it before the first generation run: changing it means regenerating every Style-prompted Sample.
+**`inputs/templates/style.txt`**: the Style Prompt Template, used only when `style_template = "inputs/templates/style.txt"` is set in `config.toml`. Same rules as `direct.txt` (`{problem}`, a single ```` ```python ```` block), and it also asks for code that looks human-written. Freeze it before the first generation run: changing it means regenerating every Style-prompted Sample.
 
 **Generators** live in `config.toml`:
 

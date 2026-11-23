@@ -1,6 +1,6 @@
 # Memorization of scraped Human Samples
 
-The scraped Human Samples (`inputs/datasets.csv`) are Stack Overflow, Code Review and GitHub posts from 2010–2018. Public code of that age is almost certainly in the pretraining data of every Generator, and may be in the training data of some Detectors.
+The scraped Human Samples (`inputs/data/datasets.csv`) are Stack Overflow, Code Review and GitHub posts from 2010–2018. Public code of that age is almost certainly in the pretraining data of every Generator, and may be in the training data of some Detectors.
 
 ## Why it matters
 
