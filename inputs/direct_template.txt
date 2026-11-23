@@ -1,0 +1,3 @@
+Write a Python solution for this forum post. Reply with a single ```python code block and nothing else.
+
+{problem}
