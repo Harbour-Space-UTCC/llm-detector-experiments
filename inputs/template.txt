@@ -1,3 +1,0 @@
-Solve the following programming problem in Python. Reply with only the code in a single ```python block.
-
-{problem}
