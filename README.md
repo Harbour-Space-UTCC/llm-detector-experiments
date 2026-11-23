@@ -11,7 +11,7 @@ Every Sample belongs to one of four Categories. The names in the first column ar
 | Category | Also called | What it is |
 | --- | --- | --- |
 | Human | Human only | Code written by a person |
-| Direct | AI only (prompt) | LLM code from `inputs/template.txt`, which only asks for a solution |
+| Direct | AI only (prompt) | LLM code from `inputs/direct_template.txt`, which only asks for a solution |
 | Style-prompted | AI + refine prompt | LLM code from `inputs/style_template.txt`, which also asks for code that looks human-written |
 | Human-fixed | AI + Human fix | A Direct Sample after a script applies a set number of Edit rules (the Edit count) |
 
@@ -33,7 +33,7 @@ Each stage skips work that is already on disk, so a crash or a rerun picks up wh
 
 ```
 config.toml              what to run: experiment name, Generators, Detectors, paper numbers
-inputs/template.txt      Prompt Template, must contain {problem}
+inputs/direct_template.txt  Prompt Template for Direct Samples, must contain {problem}
 inputs/datasets.csv      scraped forum posts, as delivered (never edit)
 inputs/problems.csv      problem_id, statement, human_code, post_type, site (made by modules/problems.py)
 detectors/<name>.py      one file per Detector
@@ -75,7 +75,7 @@ Teammates normally edit only `config.toml`, `inputs/` and their own `detectors/<
 | Redo the formatted copies, or move to another black version | change `BLACK_VERSION` in `modules/formatcheck.py` and the pin in `colab.ipynb`, then `format_copies(cfg, force=True)`, `score(cfg)` and `metrics(cfg)`. Deletes only the `:fmt` Scores |
 | Regenerate everything after changing the template or problems | `generate(cfg, force=True)`. This re-bills the API and deletes every Category file, `formatted.csv` and all Scores of that experiment |
 
-Stages skip work by `sample_id`. Editing `template.txt`, a Generator's `model_id` or `problems.csv` has no effect until you regenerate with `force=True`. A different `experiment` name is usually the better choice, because it keeps the old Results.
+Stages skip work by `sample_id`. Editing a Prompt Template, a Generator's `model_id` or `problems.csv` has no effect until you regenerate with `force=True`. A different `experiment` name is usually the better choice, because it keeps the old Results.
 
 ## Inputs
 
@@ -105,9 +105,9 @@ Stages skip work by `sample_id`. Editing `template.txt`, a Generator's `model_id
 
 Human Samples carry `post_type` and `site` in `human.csv` and `samples.csv`, so the summary splits the Human side by them.
 
-**`inputs/template.txt`**: the full prompt sent to every Generator. `{problem}` is replaced with the statement. Ask for a single ```` ```python ```` block, because the code is extracted from the first one.
+**`inputs/direct_template.txt`**: the plain Prompt Template, the full prompt sent to every Generator for Direct Samples (set by `template` in `config.toml`). `{problem}` is replaced with the statement. Ask for a single ```` ```python ```` block, because the code is extracted from the first one.
 
-**`inputs/style_template.txt`**: the Style Prompt Template, used only when `style_template = "inputs/style_template.txt"` is set in `config.toml`. Same rules as `template.txt` (`{problem}`, a single ```` ```python ```` block), and it also asks for code that looks human-written. Freeze it before the first generation run: changing it means regenerating every Style-prompted Sample.
+**`inputs/style_template.txt`**: the Style Prompt Template, used only when `style_template = "inputs/style_template.txt"` is set in `config.toml`. Same rules as `direct_template.txt` (`{problem}`, a single ```` ```python ```` block), and it also asks for code that looks human-written. Freeze it before the first generation run: changing it means regenerating every Style-prompted Sample.
 
 **Generators** live in `config.toml`:
 
