@@ -10,7 +10,9 @@
 
 **Problem**: One coding task (statement and ID) put into the Prompt Template to make a Generator write code. A forum post (its title and text, without its code) is one Problem, and the code from that post is its Human Sample. _Avoid_: question (that is the research Question).
 
-**Prompt Template**: Text with a placeholder that a Problem fills in; the full prompt sent to a Generator.
+**Prompt Template**: Text with a placeholder that a Problem fills in.
+
+**Prompt**: One Prompt Template filled with one Problem: the exact text sent to a Generator. Every Generator gets the same Prompt for the same Problem and Prompt Template. _Avoid_: filled template, rendered prompt.
 
 **Generator**: One LLM, pinned by exact model ID, that writes LLM-written Samples.
 
