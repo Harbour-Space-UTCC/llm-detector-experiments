@@ -38,7 +38,7 @@ inputs/data/problems.csv problem_id, statement, human_code, post_type, site (mad
 inputs/templates/        Prompt Templates, must contain {problem}: direct.txt (Direct), style.txt (Style-prompted)
                          and their Prompts, one <name>.jsonl per template (made by modules/prompts.py)
 detectors/<name>.py      one file per Detector
-modules/                 pipeline code (generate, humanize, formatcheck, score, metrics)
+modules/                 pipeline code (problems, prompts, generate, humanize, formatcheck, score, metrics)
 colab.ipynb              the notebook everyone runs
 results/<experiment>/    human.csv, direct.csv, human_fixed.csv (one per Category), formatted.csv (black copies), samples.csv (all combined), scores/, summary.csv
 GLOSSARY.md              shared vocabulary
