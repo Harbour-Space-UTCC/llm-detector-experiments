@@ -7,7 +7,7 @@ from typing import NamedTuple
 from openai import OpenAI
 
 from .common import CATEGORY_FILES, FORMATTED_FILE, ROOT, append_csv, combine, done_ids, read_csv, results_dir
-from .prompts import TEMPLATES
+from .prompts import TEMPLATES_DIR
 
 _FENCE_PY = re.compile(r"```(?:python3?|py)[ \t]*\n(.*?)```", re.DOTALL)
 _FENCE_BARE = re.compile(r"```[ \t]*\n(.*?)```", re.DOTALL)
@@ -26,9 +26,9 @@ class Pass(NamedTuple):
 
 
 def read_prompts(name):
-    path = ROOT / TEMPLATES / f"{name}.jsonl"
+    path = ROOT / TEMPLATES_DIR / f"{name}.jsonl"
     if not path.is_file():
-        raise FileNotFoundError(f"{TEMPLATES}/{name}.jsonl not found: add {name}.txt there and run python -m modules.prompts")
+        raise FileNotFoundError(f"{TEMPLATES_DIR}/{name}.jsonl not found: add {name}.txt there and run python -m modules.prompts")
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
 
 

@@ -54,13 +54,13 @@ def test_committed_prompt_files_match_templates_and_problems():
     """Real repo files: a template or Problems edit without rerunning the stage, or a Prompt file left after its template was removed, fails here."""
     from modules.common import ROOT, load_config, read_csv
     problems = read_csv(ROOT / load_config()["problems"])
-    templates = sorted((ROOT / prompts.TEMPLATES).glob("*.txt"))
+    templates = sorted((ROOT / prompts.TEMPLATES_DIR).glob("*.txt"))
     assert templates
     for t in templates:
         out = t.with_suffix(".jsonl")
         fix = f"{out.relative_to(ROOT).as_posix()} is stale: run `python -m modules.prompts` and commit it"
         assert out.is_file(), fix
         assert out.read_bytes() == prompts.fill(t.read_text(encoding="utf-8"), problems).encode("utf-8"), fix
-    for out in (ROOT / prompts.TEMPLATES).glob("*.jsonl"):
+    for out in (ROOT / prompts.TEMPLATES_DIR).glob("*.jsonl"):
         assert out.with_suffix(".txt").is_file(), (
             f"{out.relative_to(ROOT).as_posix()} has no {out.stem}.txt template: delete it or restore the template")
