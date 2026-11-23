@@ -1,0 +1,4 @@
+# tests/test_prompts.py compares Prompt files byte for byte with Prompts filled from the Problems,
+# so keep both LF on every OS (CRLF would put \r in the Problem statements and the Prompt lines).
+inputs/templates/*.jsonl text eol=lf
+inputs/data/problems.csv text eol=lf

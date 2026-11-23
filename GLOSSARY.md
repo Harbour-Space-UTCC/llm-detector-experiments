@@ -14,6 +14,8 @@
 
 **Prompt**: One Prompt Template filled with one Problem: the exact text sent to a Generator. Every Generator gets the same Prompt for the same Problem and Prompt Template. _Avoid_: filled template, rendered prompt.
 
+**Prompt file**: The committed `<name>.jsonl` beside a Prompt Template `<name>.txt`, holding one Prompt per Problem. The config names which Prompt files to send, and a Generator receives exactly their lines. _Avoid_: Prompt set.
+
 **Generator**: One LLM, pinned by exact model ID, that writes LLM-written Samples.
 
 **Dataset**: A collection of labelled Samples with known provenance.
@@ -38,7 +40,7 @@
 
 **Direct**: Category of LLM-written Samples from the plain Prompt Template, which asks only for a solution to the Problem. _Avoid_: AI only, pure AI.
 
-**Style-prompted**: Category of LLM-written Samples from a Style Prompt Template. _Avoid_: AI + refine prompt, humanized prompt.
+**Style-prompted**: Category of LLM-written Samples from any Prompt file other than `direct`, such as a Style Prompt Template's. _Avoid_: AI + refine prompt, humanized prompt.
 
 **Style Prompt Template**: A Prompt Template that also asks the Generator to write code that looks human-written.
 

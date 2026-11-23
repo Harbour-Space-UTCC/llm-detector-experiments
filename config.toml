@@ -1,8 +1,7 @@
 # What to run. Teammates edit this file, inputs/ and their own detectors/<name>.py.
 experiment = "toy"                  # results go to results/<experiment>/
-template = "inputs/direct_template.txt"    # Prompt Template, must contain {problem}
-# style_template = "inputs/style_template.txt"  # Style Prompt Template, must contain {problem}. Set = also generate Style-prompted Samples; omit = skip them
-problems = "inputs/problems.csv"    # problem_id, statement, human_code, post_type, site (python -m modules.problems)
+prompts = ["direct"]                # Prompt files sent as-is, each inputs/templates/<name>.jsonl (python -m modules.prompts). Must include "direct" (Direct Samples); every other name gives Style-prompted Samples with sample_id <generator>:<problem_id>:<name>, e.g. ["direct", "style"]
+problems = "inputs/data/problems.csv"    # problem_id, statement, human_code, post_type, site (python -m modules.problems)
 fpr_fallback = 0.05                 # threshold flags this share of human Samples when a detector has no paper threshold
 
 # One block per Generator. Friend replaces this list.

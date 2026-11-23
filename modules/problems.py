@@ -1,12 +1,13 @@
-"""inputs/datasets.csv (scraped forum posts) -> inputs/problems.csv. Rerun after changing a rule:
+"""inputs/data/datasets.csv (scraped forum posts) -> inputs/data/problems.csv. Rerun after changing a rule:
     python -m modules.problems
+then rebuild the Prompts from the new Problems: python -m modules.prompts
 """
 import pandas as pd
 
 from .common import ROOT, read_csv
 
 
-def convert(src=ROOT / "inputs/datasets.csv", dst=ROOT / "inputs/problems.csv"):
+def convert(src=ROOT / "inputs/data/datasets.csv", dst=ROOT / "inputs/data/problems.csv"):
     """One Problem per post whose code parses: statement = title, blank line, post text as delivered."""
     d = pd.read_csv(src, dtype=str, keep_default_na=False, encoding="utf-8-sig")  # file has a BOM
     d = d[d["code_parses"] == "True"]
@@ -22,4 +23,4 @@ def convert(src=ROOT / "inputs/datasets.csv", dst=ROOT / "inputs/problems.csv"):
 
 
 if __name__ == "__main__":
-    print(f"{len(convert())} Problems written to inputs/problems.csv")
+    print(f"{len(convert())} Problems written to inputs/data/problems.csv")

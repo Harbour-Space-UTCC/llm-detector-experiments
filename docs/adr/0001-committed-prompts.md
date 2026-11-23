@@ -11,4 +11,4 @@ Every Prompt (one Prompt Template filled with one Problem) is written by the pro
 ## Consequences
 
 - About 2 MB of generated text is committed, and the prompts stage must be rerun after any template or Problems change (the staleness test enforces it).
-- The config lists Prompt sets by name (`prompts = ["direct", "style"]`). The name `direct` alone gives the Direct Category and is required, because Humanize edits Direct Samples; every other name gives Style-prompted Samples with `sample_id` ending `:<name>`. A second Direct wording would need a new rule.
+- The config lists Prompt files by name (`prompts = ["direct", "style"]`). The name `direct` alone gives the Direct Category and is required, because Humanize edits Direct Samples; every other name gives Style-prompted Samples with `sample_id` ending `:<name>`. A second Direct wording would need a new rule.
