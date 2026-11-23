@@ -36,6 +36,7 @@ config.toml              what to run: experiment name, Generators, Detectors, pa
 inputs/data/datasets.csv scraped forum posts, as delivered (never edit)
 inputs/data/problems.csv problem_id, statement, human_code, post_type, site (made by modules/problems.py)
 inputs/templates/        Prompt Templates, must contain {problem}: direct.txt (Direct), style.txt (Style-prompted)
+                         and their Prompts, one <name>.jsonl per template (made by modules/prompts.py)
 detectors/<name>.py      one file per Detector
 modules/                 pipeline code (generate, humanize, formatcheck, score, metrics)
 colab.ipynb              the notebook everyone runs
@@ -93,7 +94,7 @@ Stages skip work by `sample_id`. Editing a Prompt Template, a Generator's `model
 | `post_created_utc`, `post_last_edited_utc`, `post_score`, `tags` | post metadata |
 | `author`, `author_link`, `link`, `question_link`, `license` | attribution |
 
-**`inputs/data/problems.csv`**: one Problem per kept post, with its one human solution. Generated, so do not edit it by hand. Run `python -m modules.problems` to rebuild it (this overwrites the file) whenever a rule changes. It keeps only rows with `code_parses=True` (687 of 1,071), because unparseable human code would give the label away and AST-based Detectors cannot read it. Both Post types are kept.
+**`inputs/data/problems.csv`**: one Problem per kept post, with its one human solution. Generated, so do not edit it by hand. Run `python -m modules.problems` to rebuild it (this overwrites the file) whenever a rule changes, then rerun the prompts stage (below). It keeps only rows with `code_parses=True` (687 of 1,071), because unparseable human code would give the label away and AST-based Detectors cannot read it. Both Post types are kept.
 
 | column | meaning |
 | --- | --- |
@@ -108,6 +109,8 @@ Human Samples carry `post_type` and `site` in `human.csv` and `samples.csv`, so 
 **`inputs/templates/direct.txt`**: the plain Prompt Template, the full prompt sent to every Generator for Direct Samples (set by `template` in `config.toml`). `{problem}` is replaced with the statement. Ask for a single ```` ```python ```` block, because the code is extracted from the first one.
 
 **`inputs/templates/style.txt`**: the Style Prompt Template, used only when `style_template = "inputs/templates/style.txt"` is set in `config.toml`. Same rules as `direct.txt` (`{problem}`, a single ```` ```python ```` block), and it also asks for code that looks human-written. Freeze it before the first generation run: changing it means regenerating every Style-prompted Sample.
+
+**`inputs/templates/<name>.jsonl`**: the Prompts, made by the prompts stage. `python -m modules.prompts` fills every `.txt` template in `inputs/templates/` with every Problem in `problems.csv` and writes `<name>.jsonl` beside it: one line `{"problem_id": ..., "prompt": ...}` per Problem, sorted by `problem_id`, non-ASCII written as-is. A template without `{problem}` stops the stage before it writes anything. The files are committed, so git shows the exact text each Generator gets and what a template edit does to it ([ADR 0001](docs/adr/0001-committed-prompts.md)). Rerun the stage and commit its output in the same commit whenever you edit a template, add one, or rebuild `problems.csv`. Do not edit the files by hand. `tests/test_prompts.py` fails, naming the stale file, when a committed Prompt file no longer matches its template and the current Problems.
 
 **Generators** live in `config.toml`:
 
@@ -160,5 +163,5 @@ Run these after changing anything in `modules/`:
 ```bash
 python -m modules.metrics    # threshold, AUROC and miss-rate logic
 python -m modules.generate   # code-block extraction
-python -m pytest tests/      # Edit rules keep output the same; Edit count 5 includes Edit count 2
+python -m pytest tests/      # Prompt files are up to date; Edit rules keep output the same; Edit count 5 includes Edit count 2
 ```

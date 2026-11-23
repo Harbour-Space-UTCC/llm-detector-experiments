@@ -1,5 +1,6 @@
 """inputs/data/datasets.csv (scraped forum posts) -> inputs/data/problems.csv. Rerun after changing a rule:
     python -m modules.problems
+then rebuild the Prompts from the new Problems: python -m modules.prompts
 """
 import pandas as pd
 
