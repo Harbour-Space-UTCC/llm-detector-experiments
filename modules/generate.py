@@ -1,4 +1,5 @@
-"""Stage 1: human.csv from problems.csv, direct.csv (and style_prompted.csv when `style_template` is set) from the Generators, combined into samples.csv."""
+"""Stage 1: human.csv from problems.csv, direct.csv and style_prompted.csv from the Prompt files named in `prompts`, combined into samples.csv."""
+import json
 import os
 import re
 from typing import NamedTuple
@@ -6,6 +7,7 @@ from typing import NamedTuple
 from openai import OpenAI
 
 from .common import CATEGORY_FILES, FORMATTED_FILE, ROOT, append_csv, combine, done_ids, read_csv, results_dir
+from .prompts import TEMPLATES
 
 _FENCE_PY = re.compile(r"```(?:python3?|py)[ \t]*\n(.*?)```", re.DOTALL)
 _FENCE_BARE = re.compile(r"```[ \t]*\n(.*?)```", re.DOTALL)
@@ -19,15 +21,23 @@ def extract_code(text):
 
 class Pass(NamedTuple):
     category: str
-    template: str
+    prompts: list
     id_suffix: str
 
 
-def read_template(path):
-    text = (ROOT / path).read_text()
-    if "{problem}" not in text:
-        raise ValueError(f"{path} has no {{problem}} placeholder, so every prompt would omit the Problem")
-    return text
+def read_prompts(name):
+    path = ROOT / TEMPLATES / f"{name}.jsonl"
+    if not path.is_file():
+        raise FileNotFoundError(f"{TEMPLATES}/{name}.jsonl not found: add {name}.txt there and run python -m modules.prompts")
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+
+
+def read_passes(names):
+    """`direct` gives Direct Samples; every other name gives Style-prompted Samples with sample_id ending :<name>."""
+    if "direct" not in names:
+        raise ValueError(f"prompts = {names} has no \"direct\", so Humanize would have no Direct Samples to edit")
+    return [Pass("Direct", read_prompts(n), "") if n == "direct" else Pass("Style-prompted", read_prompts(n), f":{n}")
+            for n in names]
 
 
 def human_samples(problems):
@@ -44,6 +54,7 @@ def human_samples(problems):
 
 def generate(cfg, force=False):
     d = results_dir(cfg)
+    passes = read_passes(cfg["prompts"])  # before force, so a bad list deletes nothing
     human_out = d / CATEGORY_FILES["Human"]
     if force:
         # Regenerated Samples reuse sample_ids, so old Scores would silently attach to new code.
@@ -51,9 +62,6 @@ def generate(cfg, force=False):
         for f in [*CATEGORY_FILES.values(), FORMATTED_FILE, "samples.csv", *(d / "scores").glob("*.csv")]:
             (d / f).unlink(missing_ok=True)
         print("force: cleared every Category file, formatted.csv, samples.csv and all scores")
-    passes = [Pass("Direct", read_template(cfg["template"]), "")]
-    if cfg.get("style_template"):
-        passes.append(Pass("Style-prompted", read_template(cfg["style_template"]), ":style"))
     done = done_ids(human_out).union(*(done_ids(d / CATEGORY_FILES[p.category]) for p in passes))
     problems = read_csv(ROOT / cfg["problems"])
 
@@ -63,17 +71,16 @@ def generate(cfg, force=False):
     print(f"human: {len(human)} new Samples")
 
     client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
-    unique = problems.drop_duplicates("problem_id")
     for g in cfg["generators"]:
         options = {"temperature": g["temperature"]} if "temperature" in g else {}
-        for category, template, suffix in passes:
+        for category, prompts, suffix in passes:
             out = d / CATEGORY_FILES[category]
             new = failed = no_code = 0
-            for pid, statement in zip(unique["problem_id"], unique["statement"]):
+            for line in prompts:
+                pid, prompt = line["problem_id"], line["prompt"]
                 sid = f"{g['name']}:{pid}{suffix}"
                 if sid in done:
                     continue
-                prompt = template.replace("{problem}", statement)
                 try:
                     r = client.chat.completions.create(
                         model=g["model_id"], messages=[{"role": "user", "content": prompt}], **options)

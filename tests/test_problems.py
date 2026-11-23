@@ -27,6 +27,7 @@ def test_convert_keeps_parsing_rows_only(tmp_path):
 def test_config_names_inputs_in_data_and_templates_folders():
     from modules.common import ROOT, load_config
     cfg = load_config(ROOT / "config.toml")
-    assert cfg["template"] == "inputs/templates/direct.txt" and cfg["problems"] == "inputs/data/problems.csv"
-    for p in [cfg["template"], cfg["problems"], "inputs/templates/style.txt", "inputs/data/datasets.csv"]:
+    assert "direct" in cfg["prompts"] and cfg["problems"] == "inputs/data/problems.csv"
+    prompt_files = [f"inputs/templates/{n}.jsonl" for n in cfg["prompts"]]
+    for p in [*prompt_files, cfg["problems"], "inputs/templates/style.txt", "inputs/data/datasets.csv"]:
         assert (ROOT / p).is_file(), p
