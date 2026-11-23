@@ -1,3 +1,13 @@
+## Inference
+
+Run model inference (Generators, Detector `score()`, prototype notebooks) only when one of these holds:
+
+1. The model sits behind an API (OpenRouter).
+2. A GPU is present (`torch.cuda.is_available()`, i.e. Colab).
+3. The user says to run it here.
+
+Otherwise verify with tests that fake the model, as `tests/test_generate.py` does, and leave the real run to Colab.
+
 ## Agent skills
 
 ### Issue tracker
