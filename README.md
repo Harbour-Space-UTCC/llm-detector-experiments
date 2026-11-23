@@ -19,7 +19,7 @@ Every Sample belongs to one of four Categories. The names in the first column ar
 
 Four stages run in order. Each one reads files and writes files, so you can rerun any stage on its own.
 
-1. **Generate**: for every Generator in `config.toml`, fill the Prompt Template with each Problem, ask the model, and keep the first Python code block. Human solutions from `problems.csv` become human Samples. If `style_template` is set in `config.toml`, every Generator is asked a second time per Problem with the Style Prompt Template, giving Style-prompted Samples with `sample_id` `<generator>:<problem>:style`. Output: `human.csv`, `direct.csv` and, when `style_template` is set, `style_prompted.csv` in `results/<experiment>/`. Humanize edits Direct Samples only.
+1. **Generate**: for every Generator in `config.toml`, send every Prompt in each Prompt file named by `prompts` in `config.toml` as-is, and keep the first Python code block. Human solutions from `problems.csv` become human Samples. `direct` is required and gives Direct Samples with `sample_id` `<generator>:<problem>`. Every other name (e.g. `style`) gives Style-prompted Samples with `sample_id` `<generator>:<problem>:<name>`. A name left out of `prompts` is not sent. Output: `human.csv`, `direct.csv` and, when `prompts` names more than `direct`, `style_prompted.csv` in `results/<experiment>/`. Humanize edits Direct Samples only.
 2. **Humanize**: edit every Direct Sample with Edit rules at Edit count 2 and 5. Output: `human_fixed.csv`, with the rules, seed and script version of each row.
    **Formatter check** (optional, `format_copies(cfg)`): makes a copy of every Sample in every Category, Human included, formatted with black at the pinned version. Output: `formatted.csv`, with `sample_id` `<sample_id>:fmt`. A Sample black cannot format gets no copy, a `status` of `failed: ...` and a line in the log. Samples with no code are skipped. Skipping the stage skips the check.
 3. **Score**: run each Detector over every Sample. Output: `results/<experiment>/scores/<detector>.csv`.
@@ -74,9 +74,9 @@ Teammates normally edit only `config.toml`, `inputs/` and their own `detectors/<
 | Add a Generator to an existing experiment | add it to `config.toml`, then `generate(cfg)`, `humanize(cfg)`, `score(cfg)`, `metrics(cfg)`. Only the new Samples are generated, edited and scored |
 | Redo Human-fixed Samples after changing `modules/humanize.py` | `humanize(cfg, force=True)`, then `format_copies(cfg)` if you use the Formatter check, `score(cfg)` and `metrics(cfg)`. Deletes only the Human-fixed Scores and the formatted copies of Human-fixed Samples. Each row records the `script_version` that made it |
 | Redo the formatted copies, or move to another black version | change `BLACK_VERSION` in `modules/formatcheck.py` and the pin in `colab.ipynb`, then `format_copies(cfg, force=True)`, `score(cfg)` and `metrics(cfg)`. Deletes only the `:fmt` Scores |
-| Regenerate everything after changing the template or problems | `generate(cfg, force=True)`. This re-bills the API and deletes every Category file, `formatted.csv` and all Scores of that experiment |
+| Regenerate everything after changing a Prompt file or problems | `generate(cfg, force=True)`. This re-bills the API and deletes every Category file, `formatted.csv` and all Scores of that experiment |
 
-Stages skip work by `sample_id`. Editing a Prompt Template, a Generator's `model_id` or `problems.csv` has no effect until you regenerate with `force=True`. A different `experiment` name is usually the better choice, because it keeps the old Results.
+Stages skip work by `sample_id`. Editing a Prompt file, a Generator's `model_id` or `problems.csv` has no effect until you regenerate with `force=True`. A different `experiment` name is usually the better choice, because it keeps the old Results.
 
 ## Inputs
 
@@ -106,9 +106,9 @@ Stages skip work by `sample_id`. Editing a Prompt Template, a Generator's `model
 
 Human Samples carry `post_type` and `site` in `human.csv` and `samples.csv`, so the summary splits the Human side by them.
 
-**`inputs/templates/direct.txt`**: the plain Prompt Template, the full prompt sent to every Generator for Direct Samples (set by `template` in `config.toml`). `{problem}` is replaced with the statement. Ask for a single ```` ```python ```` block, because the code is extracted from the first one.
+**`inputs/templates/direct.txt`**: the plain Prompt Template, filled into `direct.jsonl`, the Prompts sent to every Generator for Direct Samples (`"direct"` in `prompts` in `config.toml`, always required). `{problem}` is replaced with the statement. Ask for a single ```` ```python ```` block, because the code is extracted from the first one.
 
-**`inputs/templates/style.txt`**: the Style Prompt Template, used only when `style_template = "inputs/templates/style.txt"` is set in `config.toml`. Same rules as `direct.txt` (`{problem}`, a single ```` ```python ```` block), and it also asks for code that looks human-written. Freeze it before the first generation run: changing it means regenerating every Style-prompted Sample.
+**`inputs/templates/style.txt`**: the Style Prompt Template, filled into `style.jsonl`, sent only when `"style"` is in `prompts` in `config.toml`. Same rules as `direct.txt` (`{problem}`, a single ```` ```python ```` block), and it also asks for code that looks human-written. Freeze it before the first generation run: changing it means regenerating every Style-prompted Sample.
 
 **`inputs/templates/<name>.jsonl`**: the Prompts, made by the prompts stage. `python -m modules.prompts` fills every `.txt` template in `inputs/templates/` with every Problem in `problems.csv` and writes `<name>.jsonl` beside it: one line `{"problem_id": ..., "prompt": ...}` per Problem, sorted by `problem_id`, non-ASCII written as-is. A template without `{problem}` stops the stage before it writes anything. The files are committed, so git shows the exact text each Generator gets and what a template edit does to it ([ADR 0001](docs/adr/0001-committed-prompts.md)). Rerun the stage and commit its output in the same commit whenever you edit a template, add one, or rebuild `problems.csv`. Do not edit the files by hand. `tests/test_prompts.py` fails, naming the stale file, when a committed Prompt file no longer matches its template and the current Problems.
 
