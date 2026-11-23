@@ -26,7 +26,7 @@ def write_prompts():
             name = path.relative_to(ROOT).as_posix()
             raise ValueError(f"{name} has no {{problem}} placeholder, so every prompt would omit the Problem")
     for path, text in templates.items():
-        # write_bytes: no newline translation, so the file is byte-identical on every OS.
+        # write_bytes: no newline translation, and .gitattributes checks these files out LF, so they are byte-identical on every OS.
         path.with_suffix(".jsonl").write_bytes(fill(text, problems).encode("utf-8"))
 
 

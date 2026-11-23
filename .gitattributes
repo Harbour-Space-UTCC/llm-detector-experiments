@@ -1,0 +1,2 @@
+# Prompt files are compared byte for byte by tests/test_prompts.py, so keep them LF on every OS.
+inputs/templates/*.jsonl text eol=lf
