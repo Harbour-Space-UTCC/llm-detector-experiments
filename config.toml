@@ -15,11 +15,11 @@ model_id = "openai/gpt-4o-mini"     # exact OpenRouter model ID
 # threshold = 0.5                   # paper's own threshold; omit = use fpr (below) or fpr_fallback
 # fpr = 0.10                        # paper's FPR operating point when it has no fixed threshold
 # paper_miss_rate = 0.05            # paper's reported miss rate, for the Outdated comparison
+[detectors.xgb_tfidf]
+threshold = 0.5                     # XGBClassifier.predict cut-off
+paper_miss_rate = 0.013             # 1 - recall 98.70 (Table 3)
 
 # Placeholders (detectors/<name>.py raise NotImplementedError). Uncomment once implemented.
-# [detectors.xgb_tfidf]
-# threshold = 0.5                  # XGBClassifier.predict cut-off
-# paper_miss_rate = 0.013          # 1 - recall 98.70 (Table 3)
 # [detectors.droiddetect]
 # threshold = 0.5                  # argmax of the binary head
 # paper_miss_rate = 0.014          # inferred, paper states none: replace with the prototype's measured value
