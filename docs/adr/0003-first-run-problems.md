@@ -1,5 +1,7 @@
 # The first full run uses all 687 parseable Problems
 
+Superseded by ADR 0004: Problems are now competitive-programming tasks, not forum posts.
+
 The first full run uses every row of `datasets.csv` whose delivered `code_parses` is True: 687 Problems, no subset. The evidence is in `analysis/eda_posts.ipynb` (#31). It is cheap at this size: about $17 to generate and $6 for the LLM judge, for 2 Generators and 2 Prompt files at the placeholder prices in the notebook. The full set also gives the tightest Results: the 95% half-width of a miss rate is at most 3.7 points at N=687, against 5.7 at N=300. The smallest Human split (GitHub, 48 Samples) is noisy at any N.
 
 ## Considered Options
