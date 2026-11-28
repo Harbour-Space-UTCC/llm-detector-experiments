@@ -33,7 +33,7 @@ Each stage skips work that is already on disk, so a crash or a rerun picks up wh
 
 ```
 config.toml              what to run: experiment name, Generators, Detectors, paper numbers
-inputs/data/datasets.csv scraped forum posts, as delivered (never edit)
+inputs/data/datasets.csv Code Jam / Kick Start Problems with one human solution each (made by collect_gcj.py)
 inputs/data/problems.csv problem_id, statement, human_code, post_type, site (made by modules/problems.py)
 inputs/templates/        Prompt Templates, must contain {problem}: direct.txt (Direct), style.txt (Style-prompted)
                          and their Prompts, one <name>.jsonl per template (made by modules/prompts.py)
@@ -80,19 +80,42 @@ Stages skip work by `sample_id`. Editing a Prompt file, a Generator's `model_id`
 
 ## Inputs
 
-**`inputs/data/datasets.csv`**: 1,071 forum posts scraped by the team (Stack Overflow, Code Review, GitHub), kept byte-for-byte as delivered. It is the provenance reference: join it to anything by `problem_id` = `sample_id`.
+**`inputs/data/datasets.csv`**: 252 competitive-programming Problems from Google Code Jam 2018–2022 (129) and Kick Start 2019–2022 (123), each with one accepted human solution in Python 3 ([ADR 0004](docs/adr/0004-competitive-programming-problems.md), #48). Made by `inputs/data/collect_gcj.py` from the [GCJ Archive](https://zibada.guru/gcj/); do not edit it by hand. It is the provenance reference: join it to anything by `problem_id`.
+
+The archive has 281 Problems with code in these years. 29 have no accepted Python 3 submission and are left out: Code Jam to I/O for Women 2018 (no code archived), most World Finals problems (about 25 contestants each), and four Round 2 or Round 3 problems. Every solution was submitted between 2018-03-31 and 2022-11-12, before the 2022-11-30 cutoff.
+
+*Selection rule (one Human Sample per Problem):*
+
+1. Candidates are submissions in Python 3, the archive's `py3` or `pypy3` language. Python 2 (`python`, `pypy`) is left out.
+2. A candidate must be accepted: the scoreboard counts it correct on Test Set 1. For each contestant the file kept is the one that passed their highest Test Set.
+3. Keep the candidates that passed the most Test Sets of the Problem, so full solutions come first (230 of 252 rows pass every Test Set).
+4. Among those, take the contestant with the smallest `sha256("<problem_id>/<username>")`. This is a fixed, reproducible draw that does not favour top-ranked contestants.
+5. The code must decode as UTF-8, be non-empty and parse with Python 3's `ast`. If it does not, the next contestant in the same order is taken (no Problem needed this).
+6. A Problem is dropped if its solution is at least 80% similar (difflib ratio, whitespace collapsed) to any of the 50 rows in the `xgb_tfidf` training jsonl that print `Case #`, Code Jam's output format. None was dropped: those rows are Codeforces tasks and older Code Jam problems reposted on HackerEarth (Brattleship, File Fix-it), none from 2018–2022.
+
+To rebuild: `python inputs/data/collect_gcj.py --cache <dir> --oedingen Unformatted_Balanced.jsonl`. It fetches each page from the archive once into `<dir>` and reads it from there after. The jsonl is in the `xgb_tfidf` release zip (see `detectors/xgb_tfidf.py`).
 
 | column | meaning |
 | --- | --- |
-| `sample_id` | unique row ID (the H/N/F prefix only says which teammate scraped it) |
-| `site` | `stackoverflow`, `codereview` or `github` |
-| `code_source` | Post type: `question` (asker's own code) or `answer` |
-| `question_id`, `answer_id` | IDs on the site. `question_id` is not unique across sites |
-| `question_title`, `question_text` | the post's title and text, with the code already stripped out |
-| `code` | the code taken from the post |
-| `code_lines`, `code_parses` | line count, and whether the code parses as Python 3 |
-| `post_created_utc`, `post_last_edited_utc`, `post_score`, `tags` | post metadata |
-| `author`, `author_link`, `link`, `question_link`, `license` | attribution |
+| `problem_id` | `GCJ<year><round>-<letter>` or `KS<year><round>-<letter>`, e.g. `GCJ2021R1A-B`, `KS2019PR-A` |
+| `contest`, `year`, `round`, `round_name` | `Code Jam` or `Kick Start`, the year, the archive's round key (`2021r1a`, `ks2022h`) and its name |
+| `problem_letter`, `problem_title` | the Problem's letter in the round (rounds and letters run roughly easy to hard) and its title |
+| `statement` | the task statement as shown to contestants, converted from HTML to text: limits, Test Sets and samples included, math kept as LaTeX between `$` signs, images as `[image: alt text]` |
+| `difficulty` | solve rate (%) of the Problem's last Test Set: the share of the round's contestants who solved it in full. The source has no difficulty label |
+| `test_sets`, `solve_rates` | number of Test Sets, and the solve rate (%) of each, `;`-separated |
+| `round_participants` | contestants in the round |
+| `code` | the chosen solution, byte-for-byte as submitted |
+| `code_lines`, `code_parses` | line count, and whether it parses as Python 3 (always `True`) |
+| `language` | `py3` or `pypy3` |
+| `test_sets_passed` | Test Sets that contestant passed, e.g. `2/2` |
+| `python3_accepted` | how many Python 3 contestants were accepted on Test Set 1 (the candidates) |
+| `round_start_utc`, `submitted_utc` | round start, and round start plus the scoreboard's time for that submission |
+| `author`, `author_link` | the contestant's archive username and profile |
+| `solution_link`, `problem_link` | the code and the statement in the archive |
+| `source_problem_id` | `<round key>/<letter>` in the archive |
+| `license` | code: MIT (Google's Coding Competitions Terms); statement: Apache-2.0 (google/coding-competitions-archive) |
+
+`problems.csv` and the Prompt files below are still built from the old forum posts until the Problems stage reads this file (#49).
 
 **`inputs/data/problems.csv`**: one Problem per kept post, with its one human solution. Generated, so do not edit it by hand. Run `python -m modules.problems` to rebuild it (this overwrites the file) whenever a rule changes, then rerun the prompts stage (below). It keeps only rows with `code_parses=True` (687 of 1,071), because unparseable human code would give the label away and AST-based Detectors cannot read it. Both Post types are kept.
 
