@@ -37,7 +37,7 @@ Two risks are left. Some contestants pushed their Code Jam code to GitHub, so a 
 
 ### How many Problems
 
-The archive has **281 Problems** with code from 2018 to 2022: 158 from Code Jam (34 in 2018, then 31 a year) and 123 from Kick Start (27 in 2019, then 32 a year). The count with at least one accepted Python 3 solution is a little lower, because World Finals rounds had about 25 contestants. #48 writes down the exact number.
+The archive has **281 Problems** with code from 2018 to 2022: 158 from Code Jam (34 in 2018, then 31 a year) and 123 from Kick Start (27 in 2019, then 32 a year). The count with at least one accepted Python 3 solution is a little lower, because World Finals rounds had about 25 contestants. #48 found **252** (129 Code Jam, 123 Kick Start): Code Jam to I/O for Women 2018 has no code in the archive, and 25 World Finals, Round 2 and Round 3 problems have no accepted Python 3 submission. At 252 the half-width is about ±6.2 points.
 
 That is fewer than the 700 aimed for. At 281 the 95% half-width of a miss rate near 0.5 is about ±6 points (it is ±3.7 at 700). No other source meets the training-data and licence rules at a larger size (see below).
 
